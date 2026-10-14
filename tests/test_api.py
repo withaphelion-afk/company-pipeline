@@ -214,3 +214,8 @@ def test_jobs_endpoint_lists_matching_jobs(client, session):
     assert r["total"] == 1 and r["items"][0]["job"] == "Frontend Engineer (Remote)"
     assert r["items"][0]["apply_url"] == "https://apply/1" and r["items"][0]["best_contact"]["email"] == "jane@acme.com"
     assert client.get("/jobs", params={"q": "backend"}).json()["total"] == 0
+
+
+def test_seed_sources_run_job_sources_before_big_lists():
+    from app.sources import SEED_SOURCES
+    assert SEED_SOURCES.index("hn_hiring") < SEED_SOURCES.index("greenhouse") < SEED_SOURCES.index("ycombinator")

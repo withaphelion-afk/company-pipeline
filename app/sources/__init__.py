@@ -21,5 +21,7 @@ STARTER_FILTERS: dict[str, dict] = {  # type: ignore[type-arg]
     "sec_edgar": {"sic_codes": [7372, 7374, 6199, 6282], "max_companies": 30},
 }
 RECOMMENDED = ["ycombinator", "hn_hiring", "remoteok", "remotive", "weworkremotely", "press_rss", *STARTER_FILTERS]
-SEED_SOURCES = [n for n, c in REGISTRY.items() if c.seed]
+# Small, job-specific sources first so a discover limit is never used up by the big YC list before they run.
+_ORDER = ["hn_hiring", "remoteok", "remotive", "weworkremotely", "greenhouse", "lever", "ashby", "press_rss", "sec_edgar", "ycombinator"]
+SEED_SOURCES = sorted((n for n, c in REGISTRY.items() if c.seed), key=lambda n: _ORDER.index(n) if n in _ORDER else 99)
 SIGNAL_SOURCES = ["greenhouse", "lever", "ashby", "press_rss"]
