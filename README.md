@@ -1,6 +1,6 @@
 # Company & Contact Discovery Pipeline
 
-**Version 0.2.0.** A free, public-data pipeline that finds companies and the people at them, scores each person against *your* profile and goals (get hired, find investors, find advisors), and drafts short outreach emails for you to review. A React app has a **Review UI** (jobs, companies, contacts, review queue, suppression) and a **Control Panel** (search & run, dashboard, live runs, schedules, sources, safety, history, cache).
+**Version 0.3.0.** A free, public-data pipeline that finds companies and the people at them, scores each person against *your* profile and goals (get hired, find investors, find advisors), and drafts short outreach emails for you to review. A React app has a **Review UI** (jobs, companies, contacts, review queue, suppression) and a **Control Panel** (search & run, dashboard, live runs, schedules, sources, safety, history, cache).
 
 **Nothing is sent without you.** Approving a draft only sets `status = approved`; sending happens only when you click Send in the app (Gmail API, local) or in a Gmail window yourself.
 

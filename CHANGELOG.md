@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 - Gmail API sender (local): dry-run preview, one email per person, daily allowance, important flag, stops at first error; `python -m pipeline gmail-auth`.
 - Featured projects (Orbit and Dentiq with live links) in every email; opt-out line removed from templates.
 - Junk-contact filter (page headings, customer quotes); first.last address preferred; tests isolated from local `.env`.
