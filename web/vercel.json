@@ -1,3 +1,6 @@
 {
-  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://pipeline-api-dnnk.onrender.com/:path*" },
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+  ]
 }
