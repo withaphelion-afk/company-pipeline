@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 WORKDIR /app
-ENV PYTHONUNBUFFERED=1 QUEUE_MODE=thread LLM_PROVIDER=template DATA_DIR=/tmp/data
+ENV PYTHONPATH=/app PYTHONUNBUFFERED=1 QUEUE_MODE=thread LLM_PROVIDER=template DATA_DIR=/tmp/data
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY alembic.ini .
