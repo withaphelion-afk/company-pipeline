@@ -40,7 +40,7 @@ Stages in order: `discover → resolve_domains → find_contacts → verify_emai
 
 All via environment (`.env`), validated by `app/core/config.py`: `DATABASE_URL`, `REDIS_URL`, `CONTACT_EMAIL`, `LLM_PROVIDER`, `OLLAMA_URL`, `OLLAMA_MODEL`, `SMTP_PROBE_ENABLED` (default `false`), `SMTP_PROBE_DOMAINS`, `DAILY_SEND_CAP`, `DRY_RUN_DEFAULT`, `CONTROL_API_TOKEN`, `DATA_DIR`, `PROFILE_PATH`. Runtime toggles (kill switch, dry-run default, send cap) live in the `app_settings` table.
 
-Control API auth: loopback only unless `CONTROL_API_TOKEN` is set, then `Authorization: Bearer <token>` is required (set it in the web app via "API token").
+Auth: off in the hosted setup (`AUTH_ENABLED=false`). With `AUTH_ENABLED=true` the control API accepts only loopback unless `CONTROL_API_TOKEN` is set, and when it is set every route needs `Authorization: Bearer <token>`.
 
 ## Behaviour
 

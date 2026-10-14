@@ -1,13 +1,8 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type J = Record<string, any>;
 
-export function token(): string {
-  try { return localStorage.getItem("control_token") ?? ""; } catch { return ""; }
-}
-
 function headers(): Record<string, string> {
-  const t = token();
-  return { "Content-Type": "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) };
+  return { "Content-Type": "application/json" };
 }
 
 export async function api<T = J>(path: string, method = "GET", body?: unknown): Promise<T> {
@@ -20,7 +15,7 @@ export async function api<T = J>(path: string, method = "GET", body?: unknown): 
   return r.status === 204 ? (undefined as T) : r.json();
 }
 
-/** SSE over fetch so the bearer token header can be sent (EventSource cannot). */
+/** SSE over fetch (reads the stream with a reader). */
 export async function streamSSE(path: string, onEvent: (event: string, data: J) => void, signal: AbortSignal): Promise<void> {
   const r = await fetch(`/api${path}`, { headers: headers(), signal });
   if (!r.ok || !r.body) throw new Error(`stream failed: ${r.status}`);

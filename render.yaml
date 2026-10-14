@@ -6,7 +6,7 @@ services:
     healthCheckPath: /health
     envVars:
       - {key: DATABASE_URL, sync: false}       # Neon connection string
-      - {key: CONTROL_API_TOKEN, sync: false}  # required: protects every route
+      - {key: AUTH_ENABLED, value: "false"}   # no auth; set true + CONTROL_API_TOKEN to protect every route
       - {key: CONTACT_EMAIL, sync: false}
       - {key: PROFILE_YAML, sync: false}       # contents of profile.yaml (needed by the draft stage)
       - {key: QUEUE_MODE, value: thread}

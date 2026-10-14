@@ -98,6 +98,12 @@ def test_cache_usage_and_clear(client):
     assert client.request("DELETE", "/control/cache", params={"source": "../x"}, json={"confirm": True}).status_code == 422
 
 
+def test_auth_can_be_disabled(monkeypatch):
+    monkeypatch.setattr(get_settings(), "AUTH_ENABLED", False)
+    remote = TestClient(app, client=("10.0.0.5", 1234))
+    assert remote.get("/control/status").status_code == 200 and remote.get("/companies").status_code == 200
+
+
 def test_auth_rules(monkeypatch):
     remote = TestClient(app, client=("10.0.0.5", 1234))
     assert remote.get("/control/status").status_code == 403

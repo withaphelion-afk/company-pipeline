@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     DAILY_SEND_CAP: int = 20
     DRY_RUN_DEFAULT: bool = True
     CONTROL_API_TOKEN: str = ""
+    AUTH_ENABLED: bool = True  # false: no auth on any route (public deployments become open to anyone)
     DATA_DIR: Path = Path("./data")
     PROFILE_PATH: Path = Path("./profile.yaml")
     QUEUE_MODE: str = Field("rq", pattern="^(rq|thread|none)$")  # thread: in-process runner (free hosting); none: tests
