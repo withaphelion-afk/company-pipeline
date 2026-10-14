@@ -129,7 +129,7 @@ def list_drafts(status: str | None = None, s: Session = Depends(get_session)) ->
 
 
 class DraftPatch(BaseModel):
-    action: Literal["approve", "reject", "skip", "edit"] | None = None
+    action: Literal["approve", "reject", "skip", "edit", "sent"] | None = None
     subject: str | None = None
     body: str | None = None
 
@@ -140,18 +140,20 @@ def patch_draft(draft_id: int, patch: DraftPatch, s: Session = Depends(get_sessi
     if d is None:
         raise HTTPException(404, "draft not found")
     if d.status == "sent":
-        raise HTTPException(409, "draft already sent")
+        raise HTTPException(409, "draft already marked sent")
+    if patch.action == "sent" and d.status != "approved":
+        raise HTTPException(409, "approve the draft before marking it sent")
     if patch.subject is not None:
         d.subject = patch.subject
     if patch.body is not None:
         d.body = patch.body
-    if patch.action in ("approve", "reject", "skip"):
+    if patch.action in ("approve", "reject", "skip", "sent"):
         if patch.action == "approve":
             to = [e.address.lower() for e in d.person.emails]
             keys = to + [a.rsplit("@", 1)[-1] for a in to]
             if s.scalar(select(Suppression.id).where(Suppression.email_or_domain.in_(keys))):
                 raise HTTPException(409, "recipient is on the suppression list")
-        d.status = {"approve": "approved", "reject": "rejected", "skip": "skipped"}[patch.action]  # never "sent"
+        d.status = {"approve": "approved", "reject": "rejected", "skip": "skipped", "sent": "sent"}[patch.action]  # "sent" = you mailed it yourself
         d.reviewed_at = now()
     s.commit()
     return draft_out(d)

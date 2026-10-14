@@ -244,3 +244,12 @@ def test_linkedin_import_and_rank_bonus(client, session):
     base = score_person("other", co, [], {}, 0)[0]
     s, _, why = score_person("other", co, [], {}, 0, connection=True)
     assert s == base + 25 and "LinkedIn connection" in why
+
+
+def test_mark_sent_requires_approval(client, session):
+    seed(session)
+    d = client.get("/drafts").json()[0]
+    assert client.patch(f"/drafts/{d['id']}", json={"action": "sent"}).status_code == 409
+    client.patch(f"/drafts/{d['id']}", json={"action": "approve"})
+    assert client.patch(f"/drafts/{d['id']}", json={"action": "sent"}).json()["status"] == "sent"
+    assert client.patch(f"/drafts/{d['id']}", json={"action": "reject"}).status_code == 409

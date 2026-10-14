@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, J } from "../api";
 import { Badge, Button, Card, ErrorNote } from "../ui";
 
+const gmail = (d: J) =>
+  `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(d.to ?? "")}&su=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`;
+
 function DraftCard({ d }: { d: J }) {
   const qc = useQueryClient();
   const [edit, setEdit] = useState(false);
@@ -34,13 +37,21 @@ function DraftCard({ d }: { d: J }) {
         <>
           <div className="text-sm font-semibold">{d.subject}</div>
           <pre className="whitespace-pre-wrap font-sans text-sm">{d.body}</pre>
-          <div className="flex gap-2">
+          {d.status === "approved" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <a className="rounded border border-blue-600 bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700" href={gmail(d)} target="_blank" rel="noreferrer">Open in Gmail</a>
+              <Button onClick={() => navigator.clipboard?.writeText(`Subject: ${d.subject}\n\n${d.body}`)}>Copy</Button>
+              <Button onClick={() => m.mutate({ action: "sent" })}>I sent it</Button>
+              <span className="text-xs text-slate-400">Gmail opens pre-filled; you press Send yourself.</span>
+            </div>
+          )}
+          {d.status === "pending" && <div className="flex gap-2">
             <Button tone="primary" onClick={() => m.mutate({ action: "approve" })}>Approve</Button>
             <Button onClick={() => setEdit(true)}>Edit</Button>
             <Button tone="danger" onClick={() => m.mutate({ action: "reject" })}>Reject</Button>
             <Button onClick={() => m.mutate({ action: "skip" })}>Skip</Button>
             <span className="self-center text-xs text-slate-400">Approve only marks the draft; nothing is sent.</span>
-          </div>
+          </div>}
         </>
       )}
       <ErrorNote error={m.error} />
@@ -49,11 +60,14 @@ function DraftCard({ d }: { d: J }) {
 }
 
 export default function Queue() {
-  const q = useQuery({ queryKey: ["drafts", "pending"], queryFn: () => api<J[]>("/drafts?status=pending") });
+  const [tab, setTab] = useState("pending");
+  const q = useQuery({ queryKey: ["drafts", tab], queryFn: () => api<J[]>(`/drafts?status=${tab}`) });
   return (
     <div className="space-y-3">
+      <div className="flex gap-1">{[["pending", "To review"], ["approved", "Ready to send"], ["sent", "Sent"]].map(([k, l]) => (
+        <button key={k} onClick={() => setTab(k)} className={`rounded px-3 py-1 text-sm ${tab === k ? "bg-slate-900 text-white" : "hover:bg-slate-200"}`}>{l}</button>))}</div>
       <ErrorNote error={q.error} />
-      {q.data?.length === 0 && <p className="text-sm text-slate-500">No pending drafts. Run the draft stage from the control panel.</p>}
+      {q.data?.length === 0 && <p className="text-sm text-slate-500">Nothing here yet.</p>}
       {q.data?.map((d) => <DraftCard key={d.id} d={d} />)}
     </div>
   );

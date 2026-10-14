@@ -7,6 +7,7 @@
 - Relevance scoring, intents and a `rank` stage; investor firms discovered from funding news; three draft templates.
 - Free hosting: in-process job runner (no Redis), Dockerfile, Render + Neon + Vercel with auto-deploy via GitHub Action.
 - Import LinkedIn: upload your own Connections.csv export (no scraping); connections get a score bonus.
+- Gmail workflow: "Open in Gmail" (pre-filled compose), Copy and "I sent it" on approved drafts; PITCH.md guide.
 - Auth is now optional (`AUTH_ENABLED`).
 
 ## 0.1.0

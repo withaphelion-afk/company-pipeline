@@ -71,6 +71,10 @@ Render needs `DATABASE_URL` (Neon string; `postgres://` is converted automatical
 
 **Auth:** with `AUTH_ENABLED=true` (default) the control API accepts only loopback unless `CONTROL_API_TOKEN` is set, and when it is set every route needs `Authorization: Bearer <token>`. The hosted deployment runs with `AUTH_ENABLED=false`, **so its URL is open to anyone who finds it**; turn auth back on if that matters.
 
+## Sending (by you, from Gmail)
+
+Approved drafts get **Open in Gmail** (pre-filled compose window), **Copy** and **I sent it**; the app never sends. See [PITCH.md](PITCH.md) for which project to pitch to whom and how.
+
 ## Safety and compliance
 
 Kill switch (423 on new jobs, workers skip queued jobs, running jobs stop at the next item), per-item cancel, dry run (rolls back; no SMTP), robots.txt per host with crawl-delay, per-source rate limit (minimum 1 s), every external request appended to `data/requests.log`, suppression list enforced in verify_email, draft and approval, catch-all addresses never `verified`, SMTP RCPT probing only for allowlisted domains, never sends mail. Guessed addresses (confidence 30) may bounce; the UI labels them.
