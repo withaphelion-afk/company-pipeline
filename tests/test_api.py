@@ -219,3 +219,28 @@ def test_jobs_endpoint_lists_matching_jobs(client, session):
 def test_seed_sources_run_job_sources_before_big_lists():
     from app.sources import SEED_SOURCES
     assert SEED_SOURCES.index("hn_hiring") < SEED_SOURCES.index("greenhouse") < SEED_SOURCES.index("ycombinator")
+
+
+LINKEDIN_CSV = (
+    "Notes:\n\"When exporting your connection data, you may notice that some of the email addresses are missing.\"\n\n"
+    "First Name,Last Name,URL,Email Address,Company,Position,Connected On\n"
+    "Asha,Rao,https://www.linkedin.com/in/asha,asha@acme.com,Acme Robotics,Head of Talent,01 Jan 2026\n"
+    "Ravi,Kumar,https://www.linkedin.com/in/ravi,,Beta Labs,Frontend Engineer,02 Feb 2026\n"
+    "Lone,Wolf,https://www.linkedin.com/in/lone,,,Freelancer,03 Mar 2026\n"
+)
+
+
+def test_linkedin_import_and_rank_bonus(client, session):
+    assert client.post("/import/linkedin", json={"csv": "a,b\n1,2"}).status_code == 422
+    r = client.post("/import/linkedin", json={"csv": LINKEDIN_CSV}).json()
+    assert r == {"rows": 3, "imported": 2, "skipped_no_company": 1, "with_email": 1}
+    assert client.post("/import/linkedin", json={"csv": LINKEDIN_CSV}).json()["with_email"] == 0  # idempotent
+    people = {p["full_name"]: p for p in client.get("/people").json()}
+    assert people["Asha Rao"]["role_type"] == "recruiter" and people["Asha Rao"]["emails"][0]["confidence"] == 90
+    from types import SimpleNamespace as NS
+
+    from app.services.relevance import score_person
+    co = NS(name="X", is_hiring=False, description="", industry="", extra={})
+    base = score_person("other", co, [], {}, 0)[0]
+    s, _, why = score_person("other", co, [], {}, 0, connection=True)
+    assert s == base + 25 and "LinkedIn connection" in why

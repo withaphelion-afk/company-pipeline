@@ -33,7 +33,7 @@ Set role keywords (default `frontend, react, ui engineer`), *Remote jobs only*, 
 | `company_site` | `/about /team /contact /company /careers /blog` | robots.txt and each site's terms apply |
 | `mca21` | **stub** | no public API; cannot be enabled |
 
-**LinkedIn is not accessed.** It is excluded on purpose: its terms prohibit scraping, and its `robots.txt` disallows it, which this app's HTTP client honours. See the roadmap for the compliant alternative.
+**LinkedIn is not accessed.** It is excluded on purpose: its terms prohibit scraping, and its `robots.txt` disallows it, which this app's HTTP client honours. Instead, **Review → Import LinkedIn** takes your own `Connections.csv` from LinkedIn's "Get a copy of your data" export: each connection becomes a contact (a shared email counts as published, confidence 90) and gets a +25 score bonus after the next `rank`.
 
 ## Run it locally
 
@@ -85,7 +85,6 @@ cd web && npm run build
 
 ## Roadmap
 
-- **LinkedIn data, compliantly:** import your own LinkedIn "Get a copy of your data" export (connections CSV) so your real connections become contacts, with no scraping. Not built yet.
 - More boards: grow the Greenhouse/Lever/Ashby coverage from careers pages and the YC list.
 - Optional free pinger so scheduled runs fire while the free server is asleep.
 

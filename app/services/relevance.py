@@ -17,7 +17,8 @@ def profile_terms(profile: dict[str, Any]) -> set[str]:
     return t
 
 
-def score_person(role: str, company: Any, signals: list[Any], profile: dict[str, Any], best_conf: int) -> tuple[int, str, str]:
+def score_person(role: str, company: Any, signals: list[Any], profile: dict[str, Any], best_conf: int,
+                 connection: bool = False) -> tuple[int, str, str]:
     terms = profile_terms(profile)
     reasons: list[str] = []
     score = BASE.get(role, 8)
@@ -41,6 +42,9 @@ def score_person(role: str, company: Any, signals: list[Any], profile: dict[str,
     if overlap:
         score += min(20, 5 * len(overlap))
         reasons.append("same space: " + ", ".join(overlap[:3]))
+    if connection:
+        score += 25
+        reasons.append("your LinkedIn connection")
     score += min(9, best_conf // 10)
     if role == "investor" or (company.extra or {}).get("kind") == "investor":
         intent = "invest"

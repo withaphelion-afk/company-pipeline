@@ -15,7 +15,8 @@ def run(ctx: StageContext) -> None:
     for i, p in enumerate(people, 1):
         ctx.check()
         conf = max((e.confidence for e in p.emails), default=0)
-        p.score, p.intent, p.reason = score_person(p.role_type, p.company, by_company.get(p.company_id, []), profile, conf)
+        p.score, p.intent, p.reason = score_person(p.role_type, p.company, by_company.get(p.company_id, []), profile, conf,
+                                                  bool((p.extra or {}).get("connection")))
         ctx.count(f"intent_{p.intent}")
         if i % 25 == 0 or i == len(people):
             ctx.progress(i, len(people))

@@ -61,6 +61,22 @@ def get_company(company_id: int, s: Session = Depends(get_session)) -> dict[str,
             "signals": [signal_out(x) for x in sorted(c.signals, key=lambda x: x.observed_at or now(), reverse=True)]}
 
 
+class LinkedinCsv(BaseModel):
+    csv: str
+
+
+@router.post("/import/linkedin")
+def import_linkedin(b: LinkedinCsv, s: Session = Depends(get_session)) -> dict[str, int]:
+    """Upload the text of your own Connections.csv; each connection becomes a contact (flagged as a connection)."""
+    from app.services.linkedin_import import import_connections, parse_connections
+
+    try:
+        conns = parse_connections(b.csv)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return {"rows": len(conns), **import_connections(s, conns)}
+
+
 @router.get("/jobs")
 def list_jobs(q: str | None = None, page: int = 1, page_size: int = 50, s: Session = Depends(get_session)) -> dict[str, Any]:
     """Jobs that matched the saved search (title keyword + remote): one row per job signal, newest first."""
