@@ -19,7 +19,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     threaded.stop()
 
 
-app = FastAPI(title="Company & Contact Discovery Pipeline", lifespan=lifespan)
+app = FastAPI(title="Company & Contact Discovery Pipeline", version="0.2.0", lifespan=lifespan)
 app.include_router(review.router)
 app.include_router(control.router)
 

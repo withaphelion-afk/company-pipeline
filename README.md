@@ -1,91 +1,99 @@
 # Company & Contact Discovery Pipeline
 
-Local, free pipeline that discovers companies from public sources, finds founders/execs/recruiters, derives candidate business emails with confidence scores, attaches recent public signals, and drafts short outreach emails for human review. A React app provides a **Review UI** (`/review`) and a **Control Panel** (`/control`).
+**Version 0.2.0.** A free, public-data pipeline that finds companies and the people at them, scores each person against *your* profile and goals (get hired, find investors, find advisors), and drafts short outreach emails for you to review. A React app has a **Review UI** (jobs, companies, contacts, review queue, suppression) and a **Control Panel** (search & run, dashboard, live runs, schedules, sources, safety, history, cache).
 
-**Nothing is ever sent.** `app/sender/` is a stub (`send()` raises `NotImplementedError`); approving a draft only sets `status = approved`.
+**Nothing is ever sent.** `app/sender/` is a stub (`send()` raises `NotImplementedError`); approving a draft only sets `status = approved`. You mail people yourself.
 
-## Setup
+## How it works
+
+`discover → resolve_domains → find_contacts → verify_email → enrich → rank → draft`
+
+1. **discover**: pulls companies (and, for job sources, the matching job and any published contact email) from the enabled sources. A discover `limit` counts *new* companies, so each run adds the next batch.
+2. **resolve_domains**: guesses `name.{com,io,ai,in}` and keeps a domain only if it answers HTTP and has MX records.
+3. **find_contacts**: reads `/about /team /contact /company` for founders, execs and recruiters (robots.txt respected).
+4. **verify_email**: an address printed on a page scores 90; otherwise name-pattern guesses score 30 (unverified). SMTP probing is off by default.
+5. **enrich**: finds the company's own job board from its careers page (Greenhouse / Lever / Ashby), reads its jobs, adds news and blog signals.
+6. **rank**: scores every person 0-100 with an intent (`hire`, `invest`, `advise`) and a one-line reason.
+7. **draft**: writes a short email per person from one of three templates (or Ollama), using only `profile.yaml` facts and stored signals.
+
+### Search & run (the main page)
+
+Set role keywords (default `frontend, react, ui engineer`), *Remote jobs only*, and your goals. Only jobs whose title matches a keyword (and is remote, if ticked) become hiring signals; a matching job adds +30 to a contact's score. **Enable all recommended free sources** turns on every no-config source; **Run everything** queues all stages in order. Repeat it to keep growing the list. The **Remote jobs** page lists every matched job with its apply link and best contact.
+
+## Sources (all free, no keys)
+
+| Source | What | Notes |
+|---|---|---|
+| `hn_hiring` | latest "Ask HN: Who is hiring?" posts matching your search | many posts include a contact email (confidence 90) |
+| `remoteok`, `remotive`, `weworkremotely` | remote job feeds | RemoteOK and Remotive ask for a link back if data is shown publicly and for modest request rates; this app is private and low-volume |
+| `greenhouse`, `lever`, `ashby` | public job-board JSON for the slugs you configure (starter list built in); more boards are found automatically from company careers pages | public posting APIs |
+| `ycombinator` | company list | uses the community mirror `yc-oss.github.io/api` (a third-party static JSON dataset), because the directory itself needs an embedded Algolia key. Batch accepts `W24` or `Winter 2024` |
+| `sec_edgar` | tickers + submissions filtered by SIC code | identify yourself via `CONTACT_EMAIL`; stay under 10 req/s |
+| `press_rss` | TechCrunch, Entrackr, Inc42, ET Startups, Crunchbase News | funding and launch signals; investor firms named in funding news ("led by X") become `investor` companies, whose team pages yield investor contacts. Verify the ET feed URL in `app/sources/press_rss.py` |
+| `company_site` | `/about /team /contact /company /careers /blog` | robots.txt and each site's terms apply |
+| `mca21` | **stub** | no public API; cannot be enabled |
+
+**LinkedIn is not accessed.** It is excluded on purpose: its terms prohibit scraping, and its `robots.txt` disallows it, which this app's HTTP client honours. See the roadmap for the compliant alternative.
+
+## Run it locally
 
 ```bash
-docker compose up -d                    # Postgres + Redis (skip if you run them yourself)
+docker compose up -d                       # Postgres + Redis
 python -m venv .venv && .venv/Scripts/activate   # Linux/macOS: source .venv/bin/activate
-make install                            # pip install -r requirements-dev.txt && npm install in web/
-cp .env.example .env                    # set CONTACT_EMAIL (goes in every User-Agent)
-cp profile.yaml.example profile.yaml    # your facts; the draft stage reads only this + stored signals
-make migrate                            # alembic upgrade head
-make run-api                            # http://127.0.0.1:8000  (docs at /docs)
-make run-worker                         # RQ worker + APScheduler (schedules reload every 30s)
-make run-web                            # http://localhost:5173  (proxies /api -> FastAPI)
+make install
+cp .env.example .env                       # set CONTACT_EMAIL (used in the User-Agent)
+cp profile.yaml.example profile.yaml       # your facts; drafts use only this + stored signals
+make migrate
+make run-api       # http://127.0.0.1:8000  (docs at /docs)
+make run-worker    # RQ worker + scheduler
+make run-web       # http://localhost:5173
 ```
 
-CLI (runs in-process, no Redis needed):
-
-```bash
-python -m pipeline run --stage all
-python -m pipeline run --stage discover --source greenhouse --dry-run
-python -m pipeline run --stage enrich --from-cache      # replay raw responses from data/raw
-python -m pipeline purge --person 42                    # delete a person + emails + drafts
-```
-
-Without `--dry-run/--no-dry-run` the CLI uses the stored default (`DRY_RUN_DEFAULT=true`), so **the first run changes nothing**; pass `--no-dry-run` to write.
-
-Stages in order: `discover → resolve_domains → find_contacts → verify_email → enrich → draft`. Enable sources and set their filters on the Sources page (or `PUT /control/sources/{name}`) first; a source with missing required config cannot be enabled.
+CLI (in-process, no Redis): `python -m pipeline run --stage all`, `python -m pipeline run --stage discover --source hn_hiring --no-dry-run`, `python -m pipeline purge --person 42`. Without `--no-dry-run` the CLI follows the stored dry-run default (on), so the first run changes nothing.
 
 ### Drafting with Ollama (optional)
 
-1. Install from <https://ollama.com>, then `ollama pull llama3.1:8b` (low RAM: `llama3.2:3b` and set `OLLAMA_MODEL`).
-2. Keep `LLM_PROVIDER=ollama`. If Ollama is unreachable, or a draft fails JSON/80-120-word/opt-out validation twice, the Jinja2 `TemplateProvider` is used and a warning lands in the job log. `LLM_PROVIDER=template` needs no model at all.
+Install from <https://ollama.com>, `ollama pull llama3.1:8b`, and keep `LLM_PROVIDER=ollama`. If it is unreachable or fails validation (80-120 words, opt-out line, JSON) the Jinja2 templates in `templates/outreach_{hire,invest,advise}.j2` are used. `LLM_PROVIDER=template` needs no model.
+
+## Free hosting (what the live deployment uses)
+
+| Part | Where |
+|---|---|
+| Web app | Vercel, project root `web/`, deploys on every push; `web/vercel.json` rewrites `/api/*` to the backend |
+| API + job runner + scheduler | Render free web service from the `Dockerfile` (`QUEUE_MODE=thread`: one process, no Redis) |
+| Database | Neon free Postgres |
+
+Render needs `DATABASE_URL` (Neon string; `postgres://` is converted automatically), `CONTACT_EMAIL`, `PROFILE_YAML` (the contents of your profile), `AUTH_ENABLED`, and optionally `DRAFT_MIN_CONFIDENCE` / `DRAFT_MIN_SCORE`. A GitHub Action (`.github/workflows/deploy.yml`) triggers a Render deploy on each push, using the `RENDER_API_KEY` and `RENDER_SERVICE_ID` repo secrets. The free instance sleeps when idle and its disk is wiped on restart, so only the database persists.
 
 ## Configuration
 
-All via environment (`.env`), validated by `app/core/config.py`: `DATABASE_URL`, `REDIS_URL`, `CONTACT_EMAIL`, `LLM_PROVIDER`, `OLLAMA_URL`, `OLLAMA_MODEL`, `SMTP_PROBE_ENABLED` (default `false`), `SMTP_PROBE_DOMAINS`, `DAILY_SEND_CAP`, `DRY_RUN_DEFAULT`, `CONTROL_API_TOKEN`, `DATA_DIR`, `PROFILE_PATH`. Runtime toggles (kill switch, dry-run default, send cap) live in the `app_settings` table.
+`DATABASE_URL`, `REDIS_URL`, `CONTACT_EMAIL`, `LLM_PROVIDER`, `OLLAMA_URL`, `OLLAMA_MODEL`, `SMTP_PROBE_ENABLED` (default false), `SMTP_PROBE_DOMAINS`, `DAILY_SEND_CAP`, `DRY_RUN_DEFAULT`, `QUEUE_MODE` (`rq` | `thread` | `none`), `PROFILE_PATH` / `PROFILE_YAML`, `DATA_DIR`, `DRAFT_MIN_CONFIDENCE` (80; the hosted app uses 30 so guessed addresses can be drafted, labelled "guess"), `DRAFT_MIN_SCORE`, `AUTH_ENABLED` and `CONTROL_API_TOKEN`.
 
-Auth: off in the hosted setup (`AUTH_ENABLED=false`). With `AUTH_ENABLED=true` the control API accepts only loopback unless `CONTROL_API_TOKEN` is set, and when it is set every route needs `Authorization: Bearer <token>`.
+**Auth:** with `AUTH_ENABLED=true` (default) the control API accepts only loopback unless `CONTROL_API_TOKEN` is set, and when it is set every route needs `Authorization: Bearer <token>`. The hosted deployment runs with `AUTH_ENABLED=false`, **so its URL is open to anyone who finds it**; turn auth back on if that matters.
 
-## Behaviour
+## Safety and compliance
 
-- **Kill switch**: new jobs get HTTP 423, workers skip queued jobs, running jobs stop at the next item.
-- **Cancel**: stages call `ctx.check()` between items, so they stop within one item.
-- **Dry run**: full logic, rollback at the end, no SMTP probing; the "what would change" counts are in `job_runs.stats.dry_run_report`.
-- **Progress**: every stage logs `{processed,total,errors}`; `GET /control/jobs/{id}/logs/stream` is SSE (`log`, `progress`, `end` events).
-- **Schedules**: cron (UTC), anything faster than every 15 minutes is rejected.
-- Endpoints are served at the root (`/companies`, `/control/...`); the web app reaches them through the `/api` dev proxy.
-
-## Sources and terms
-
-Review each site's terms before enabling it. The pipeline only fetches public pages/APIs, checks `robots.txt` before HTML, rate-limits per domain, and sends `CompanyPipeline/0.1 (+contact: <CONTACT_EMAIL>)`.
-
-| Source | What | Terms / notes |
-|---|---|---|
-| `ycombinator` | company list | The YC directory is rendered from an Algolia index that needs an embedded app key, so it is not called. Default is the community static mirror `yc-oss.github.io/api` (free, no key); override with `query_filters.endpoint`. That is a third-party dataset: confirm you are comfortable with it. |
-| `greenhouse` / `lever` / `ashby` | public job-board JSON for slugs you configure | Public posting APIs intended for job boards; keep the rate limit conservative. |
-| `sec_edgar` | tickers + submissions JSON filtered by SIC | SEC fair-access policy: identify yourself (done via User-Agent), stay under 10 req/s. |
-| `company_site` | `/about /team /contact /company /blog` | Per-site terms and robots.txt apply; disallowed pages are skipped. |
-| `press_rss` | TechCrunch, Entrackr, Inc42, ET Startups, Crunchbase News feeds | Headlines + links only. Verify the ET feed URL in `app/sources/press_rss.py`. |
-| `mca21` | **stub** | MCA21 has no public API; needs a licensed/bulk source. Cannot be enabled. |
-
-## Adding a source
-
-Subclass `Source` in `app/sources/`, set `name`, `requires_config`, `seed`, implement `fetch_companies` / `fetch_people` / `fetch_signals` using `self.client` (never raw httpx), register it in `app/sources/__init__.py`, and add a fixture test.
-
-## Compliance
-
-robots.txt (cached per host, crawl-delay honoured); no logins, CAPTCHA, paywall or rate-limit bypass; no LinkedIn access (only profile links a company page itself publishes); suppression list enforced in verify_email, draft, approval and `can_send`; every external request is appended to `data/requests.log`; SMTP RCPT probing is **off by default**, only for domains in `SMTP_PROBE_DOMAINS`, never sends mail, tests a random address first for catch-all, and is never run in dry runs. Confidence: published on page 90 · SMTP accepted 80 · catch-all 40 · MX only 30 · unknown 10; catch-all is never `verified`.
+Kill switch (423 on new jobs, workers skip queued jobs, running jobs stop at the next item), per-item cancel, dry run (rolls back; no SMTP), robots.txt per host with crawl-delay, per-source rate limit (minimum 1 s), every external request appended to `data/requests.log`, suppression list enforced in verify_email, draft and approval, catch-all addresses never `verified`, SMTP RCPT probing only for allowlisted domains, never sends mail. Guessed addresses (confidence 30) may bounce; the UI labels them.
 
 ## Quality
 
 ```bash
-make test    # pytest, no network, SMTP/DNS mocked, SQLite
-make lint    # ruff check . && mypy app
-cd web && npm run build   # tsc + vite
+make test      # 80+ tests, no network (HTTP, DNS, SMTP mocked), SQLite
+make lint      # ruff check . && mypy app
+cd web && npm run build
 ```
+
+## Roadmap
+
+- **LinkedIn data, compliantly:** import your own LinkedIn "Get a copy of your data" export (connections CSV) so your real connections become contacts, with no scraping. Not built yet.
+- More boards: grow the Greenhouse/Lever/Ashby coverage from careers pages and the YC list.
+- Optional free pinger so scheduled runs fire while the free server is asleep.
 
 ## Known limitations
 
-- Port 25 is often blocked by ISPs/cloud hosts, so probes may return `unknown`.
-- Tests use SQLite; production targets Postgres (JSON columns become JSONB). With SQLite, job logs are written when the stage ends instead of live.
-- RQ's forking `Worker` is unix-only; `make run-worker` uses `SimpleWorker` so it also works on Windows (no per-job timeout enforcement there).
-- Company-site people extraction is heuristic (name/title line patterns) and will miss unusual layouts.
-- `resolve_domains` guesses `name.{com,io,ai,in}` and needs live HEAD + MX; skipped with `--from-cache`.
-- The initial Alembic revision creates tables from the models; later changes should be autogenerated diffs.
-- Postgres/Redis were not exercised here (Docker was unavailable on the build machine); the full flow is covered against SQLite and fixtures.
+- Port 25 is often blocked, so SMTP checks may return `unknown`.
+- Tests use SQLite; production is Postgres. With SQLite, job logs are written when a stage ends.
+- RQ's forking worker is unix-only; `make run-worker` uses `SimpleWorker` so it also runs on Windows.
+- Company-site people extraction is heuristic and misses unusual layouts. `resolve_domains` guesses can pick the wrong company with a common name.
+- Free hosting is slow (about 15 s per company when finding contacts) and a deploy restarts the server, which fails any job running at that moment.
+- The first Alembic revision creates tables from the models; later ones are explicit migrations.
