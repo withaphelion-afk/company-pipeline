@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/
+!data/.gitkeep
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+web/node_modules/
+web/dist/
+/profile.yaml
+*.db

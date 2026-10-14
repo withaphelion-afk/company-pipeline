@@ -1,0 +1,10 @@
+name: Jane Doe
+role: Backend Engineer
+location: Bengaluru, India
+skills: [Python, PostgreSQL, FastAPI, Data pipelines]
+projects:
+  - name: Ledgerly
+    description: an open-source expense tracker with CSV import
+    link: https://github.com/example/ledgerly
+    metric: 1.2k GitHub stars
+target_roles: [Backend Engineer, Data Engineer]

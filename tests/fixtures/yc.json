@@ -1,0 +1,19 @@
+[
+ {
+  "name": "Delta Inc.",
+  "website": "https://www.delta.io/",
+  "batch": "W24",
+  "industry": "Fintech",
+  "one_liner": "Payments",
+  "all_locations": "San Francisco, CA, USA",
+  "team_size": 12,
+  "isHiring": true
+ },
+ {
+  "name": "Old Co",
+  "website": "https://old.com",
+  "batch": "S10",
+  "industry": "B2B",
+  "isHiring": false
+ }
+]

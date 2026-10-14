@@ -1,0 +1,13 @@
+from collections.abc import Callable
+
+from app.stages import discover, draft, enrich, find_contacts, resolve_domains, verify_email
+from app.stages.base import StageContext
+
+STAGES: dict[str, Callable[[StageContext], None]] = {
+    "discover": discover.run,
+    "resolve_domains": resolve_domains.run,
+    "find_contacts": find_contacts.run,
+    "verify_email": verify_email.run,
+    "enrich": enrich.run,
+    "draft": draft.run,
+}

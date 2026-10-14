@@ -1,0 +1,18 @@
+{
+ "jobs": [
+  {
+   "title": "Backend Engineer",
+   "location": {
+    "name": "Bengaluru"
+   },
+   "absolute_url": "https://boards.greenhouse.io/acme/jobs/1"
+  },
+  {
+   "title": "Data Engineer",
+   "location": {
+    "name": "Remote"
+   },
+   "absolute_url": "https://boards.greenhouse.io/acme/jobs/2"
+  }
+ ]
+}

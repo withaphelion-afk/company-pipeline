@@ -1,0 +1,12 @@
+{
+ "name": "Alpha Software Corp",
+ "sic": "7374",
+ "sicDescription": "Computer Processing",
+ "website": "https://alpha.com",
+ "addresses": {
+  "business": {
+   "city": "Austin",
+   "stateOrCountryDescription": "TX"
+  }
+ }
+}
