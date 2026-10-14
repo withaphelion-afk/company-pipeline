@@ -106,7 +106,9 @@ def test_auth_rules(monkeypatch):
     assert remote.get("/control/status", headers={"Authorization": "Bearer wrong"}).status_code == 401
     assert remote.get("/control/status", headers={"Authorization": "Bearer secret"}).status_code == 200
     assert TestClient(app).get("/control/status").status_code == 401  # token required even from localhost
-    assert remote.get("/companies").status_code == 200  # review API is not part of the control surface
+    assert remote.get("/companies").status_code == 401  # review API needs the token too once it is set
+    assert remote.get("/companies", headers={"Authorization": "Bearer secret"}).status_code == 200
+    assert remote.get("/health").status_code == 200
 
 
 def test_sse_streams_progress_events(client, monkeypatch):

@@ -7,6 +7,13 @@ from app.core.config import get_settings
 LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost", "testclient"}
 
 
+def review_auth(request: Request) -> None:
+    """Review API: open for local dev, bearer token required whenever CONTROL_API_TOKEN is set (any deployment)."""
+    token = get_settings().CONTROL_API_TOKEN
+    if token and not secrets.compare_digest(request.headers.get("authorization", ""), f"Bearer {token}"):
+        raise HTTPException(401, "Missing or invalid bearer token")
+
+
 def control_auth(request: Request) -> None:
     token = get_settings().CONTROL_API_TOKEN
     if token:

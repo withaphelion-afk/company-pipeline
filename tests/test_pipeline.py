@@ -179,3 +179,25 @@ def test_failed_stage_records_error(session, monkeypatch):
     session.expire_all()
     job = session.get(JobRun, job_id)
     assert status == "failed" and "kaput" in job.error
+
+
+def test_threaded_runner_picks_up_queued_job(session, monkeypatch):
+    import time
+
+    from app.jobs import threaded
+
+    monkeypatch.setitem(STAGES, "discover", lambda ctx: ctx.count("items"))
+    stale = create_job("discover", None, None, True)
+    session.get(JobRun, stale).status = "running"  # left behind by a killed process
+    session.commit()
+    jid = create_job("discover", None, None, True)
+    threaded.start()
+    try:
+        for _ in range(100):
+            session.expire_all()
+            if session.get(JobRun, jid).status == "succeeded":
+                break
+            time.sleep(0.1)
+    finally:
+        threaded.stop()
+    assert session.get(JobRun, jid).status == "succeeded" and session.get(JobRun, stale).status == "failed"

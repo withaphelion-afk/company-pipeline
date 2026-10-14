@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: pipeline-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - {key: DATABASE_URL, sync: false}       # Neon connection string
+      - {key: CONTROL_API_TOKEN, sync: false}  # required: protects every route
+      - {key: CONTACT_EMAIL, sync: false}
+      - {key: PROFILE_YAML, sync: false}       # contents of profile.yaml (needed by the draft stage)
+      - {key: QUEUE_MODE, value: thread}
+      - {key: LLM_PROVIDER, value: template}

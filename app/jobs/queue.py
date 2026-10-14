@@ -12,7 +12,7 @@ def get_redis() -> Redis:
 
 def enqueue(job_id: int) -> None:
     """Push to RQ. QUEUE_MODE=none only leaves the job row queued (used by tests)."""
-    if get_settings().QUEUE_MODE == "none":
+    if get_settings().QUEUE_MODE in ("none", "thread"):  # thread mode polls job_runs for queued rows
         return
     Queue(QUEUE_NAME, connection=get_redis()).enqueue("app.jobs.runner.run_job", job_id, job_timeout=3600)
 

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import control_auth
 from app.core.config import get_settings
 from app.core.db import SessionLocal, get_session
+from app.jobs import threaded
 from app.jobs.queue import enqueue, queue_depth
 from app.jobs.runner import create_job
 from app.models import JobLog, JobRun, Schedule, SourceSetting, Suppression, now
@@ -32,6 +33,8 @@ def job_out(j: JobRun) -> dict[str, Any]:
 
 
 def _workers() -> int | None:
+    if get_settings().QUEUE_MODE == "thread":
+        return 1 if threaded.alive() else 0
     try:
         from rq import Worker
 

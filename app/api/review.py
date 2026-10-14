@@ -5,10 +5,11 @@ from pydantic import BaseModel
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.orm import Session
 
+from app.core.auth import review_auth
 from app.core.db import get_session
 from app.models import Company, Draft, Email, Person, Signal, Suppression, now
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(review_auth)])
 
 
 def email_out(e: Email) -> dict[str, Any]:
