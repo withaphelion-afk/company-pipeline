@@ -8,7 +8,7 @@ from app.services.llm.base import DraftInput, LLMError, LLMProvider, parse_draft
 SYSTEM = (
     "You write short, honest outreach emails. Use ONLY the facts provided below. Never invent achievements, "
     "metrics, employers or claims. Mention at least one specific detail from the signals. Body: 80-120 words, "
-    "plain text, include one sentence telling the recipient they can reply 'opt out' to never be contacted again. "
+    "plain text, no postscript. "
     'Return ONLY JSON: {"subject": "...", "body": "..."}'
 )
 

@@ -1,0 +1,10 @@
+Hi {{ first }},
+
+A quick follow-up on my earlier note about {{ company }}. In case it helps, here are {{ project_names }} again:
+{% for p in projects %}{{ p.get('demo') or p.get('link', '') }}
+{% endfor %}
+
+Even a one-line reply, or a pointer to the right person, would help a lot. If the timing is wrong, no problem at all.
+
+Thank you,
+{{ me }}

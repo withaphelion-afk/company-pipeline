@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Any
 
 PROMPT_VERSION = "v1"
-OPT_OUT_RE = re.compile(r"opt[- ]?out|unsubscribe|not interested|prefer not", re.I)
 
 
 class LLMError(Exception):
@@ -20,6 +19,7 @@ class DraftInput:
     company: str
     signals: list[dict[str, Any]]  # {type, value, url}
     intent: str = "hire"  # hire | invest | advise
+    company_desc: str = ""  # the company's own one-liner, used for the "why them" sentence
     company_text: str = ""  # description + industry, used to pick the most relevant project
 
 
@@ -51,5 +51,3 @@ def validate_draft(d: dict[str, str]) -> None:
         raise LLMError(f"body has {n} words, need 80-120")
     if not d["subject"]:
         raise LLMError("empty subject")
-    if not OPT_OUT_RE.search(d["body"]):
-        raise LLMError("missing opt-out sentence")

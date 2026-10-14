@@ -67,6 +67,7 @@ class Person(Base):
     score: Mapped[int] = mapped_column(Integer, default=0, index=True)  # relevance to the profile, 0-100
     intent: Mapped[str | None] = mapped_column(String(10))  # hire | invest | advise
     reason: Mapped[str | None] = mapped_column(Text)
+    outreach: Mapped[str] = mapped_column(String(12), default="none")  # none | contacted | replied | declined | done
     source: Mapped[str | None] = mapped_column(String(50))
     fetched_at: Mapped[datetime | None] = _dt()
     company: Mapped[Company] = relationship(back_populates="people")
@@ -110,6 +111,9 @@ class Draft(Base):
     llm_provider: Mapped[str] = mapped_column(String(50))
     signals_used: Mapped[list[Any]] = mapped_column(JsonType, default=list)
     status: Mapped[str] = mapped_column(String(20), default="pending")
+    kind: Mapped[str] = mapped_column(String(10), default="initial")  # initial | followup | final
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("drafts.id", ondelete="SET NULL"))
+    due_at: Mapped[datetime | None] = _dt()  # follow-ups only appear for review once due
     reviewed_at: Mapped[datetime | None] = _dt()
     person: Mapped[Person] = relationship()
     company: Mapped[Company] = relationship()

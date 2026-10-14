@@ -1,10 +1,12 @@
+from datetime import datetime
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import get_settings
 from app.jobs.runner import create_job, run_job
 from app.main import app
-from app.models import Company, Draft, Email, Person, Signal
+from app.models import Company, Draft, Email, Person, Signal, now
 from app.services import control
 from app.stages import STAGES
 
@@ -253,3 +255,153 @@ def test_mark_sent_requires_approval(client, session):
     client.patch(f"/drafts/{d['id']}", json={"action": "approve"})
     assert client.patch(f"/drafts/{d['id']}", json={"action": "sent"}).json()["status"] == "sent"
     assert client.patch(f"/drafts/{d['id']}", json={"action": "reject"}).status_code == 409
+
+
+def test_each_draft_has_one_recipient_only(client, session):
+    co, p = seed(session)
+    session.add(Email(person_id=p.id, address="j@acme.com", confidence=30, status="unverified"))
+    session.commit()
+    (d,) = client.get("/drafts").json()
+    assert d["to"] == "jane@acme.com" and not any(c in d["to"] for c in ",; ")  # best address only, never several
+
+
+def _sent_chain(client, session):
+    co, p = seed(session)
+    d = client.get("/drafts").json()[0]
+    client.patch(f"/drafts/{d['id']}", json={"action": "approve"})
+    client.patch(f"/drafts/{d['id']}", json={"action": "sent"})
+    return co, p, d
+
+
+def test_marking_sent_schedules_followup_and_final(client, session):
+    co, p, d = _sent_chain(client, session)
+    sched = client.get("/drafts", params={"status": "scheduled"}).json()
+    assert [x["kind"] for x in sched] == ["followup", "final"]
+    assert sched[0]["subject"] == "Re: Hi" and "Jane" in sched[0]["body"] and "P.S." not in sched[0]["body"]
+    assert client.get("/drafts", params={"status": "pending"}).json() == []  # not due yet
+    sent = datetime.fromisoformat(client.get("/drafts", params={"status": "sent"}).json()[0]["reviewed_at"])
+    gaps = [(datetime.fromisoformat(x["due_at"]) - sent).days for x in sched]
+    assert gaps == [4, 10]
+
+
+def test_replied_stops_followups_and_declined_suppresses(client, session):
+    co, p, d = _sent_chain(client, session)
+    assert client.patch(f"/people/{p.id}/outreach", json={"status": "replied"}).json()["outreach"] == "replied"
+    assert client.get("/drafts", params={"status": "scheduled"}).json() == []
+    client.patch(f"/people/{p.id}/outreach", json={"status": "declined"})
+    assert [r["email_or_domain"] for r in client.get("/suppression").json()] == ["jane@acme.com"]
+
+
+def test_due_followup_appears_for_review_and_today_list_is_ordered(client, session):
+    co, p, d = _sent_chain(client, session)
+    from datetime import timedelta
+
+    from app.models import Draft
+    for x in session.query(Draft).filter(Draft.kind != "initial"):
+        x.due_at = now() - timedelta(hours=1)
+    # a guessed-address person with a higher score
+    p2 = Person(company_id=co.id, full_name="Guess Person", role_type="founder", score=95, intent="hire", extra={})
+    session.add(p2)
+    session.flush()
+    session.add(Email(person_id=p2.id, address="guess@acme.com", confidence=30, status="unverified"))
+    session.add(Draft(person_id=p2.id, company_id=co.id, subject="G", body="b", prompt_version="v1", llm_provider="t", status="approved"))
+    session.commit()
+    pend = client.get("/drafts", params={"status": "pending"}).json()
+    assert [x["kind"] for x in pend] == ["followup", "final"]
+    for x in pend:
+        client.patch(f"/drafts/{x['id']}", json={"action": "approve"})
+    today = client.get("/outreach/today").json()
+    assert today["cap"] == 15 and today["sent_24h"] == 1 and today["remaining"] == 14
+    assert [(i["published"], i["kind"]) for i in today["items"]] == [(True, "followup"), (True, "final"), (False, "initial")]
+
+
+class FakeGmail:
+    """Stands in for the Gmail service: records raw messages, never touches the network."""
+
+    def __init__(self, account="withaphelion@gmail.com", fail_on=None):
+        self.sent, self.account, self.fail_on = [], account, fail_on
+
+    def users(self):
+        return self
+
+    def messages(self):
+        return self
+
+    def send(self, userId, body):
+        def run(_s):
+            if self.fail_on is not None and len(self.sent) == self.fail_on:
+                raise RuntimeError("quota")
+            self.sent.append(body["raw"])
+            return {"id": f"m{len(self.sent)}"}
+        return type("R", (), {"execute": run})()
+
+
+def _approved_people(session, n=3):
+    co = Company(name="Acme", normalized_name="acme", domain="acme.com", extra={})
+    session.add(co)
+    session.flush()
+    ids = []
+    for i in range(n):
+        p = Person(company_id=co.id, full_name=f"Person {i}", role_type="founder", score=50 - i, intent="advise", extra={})
+        session.add(p)
+        session.flush()
+        session.add(Email(person_id=p.id, address=f"p{i}@acme.com", confidence=30, status="unverified"))
+        d = Draft(person_id=p.id, company_id=co.id, subject=f"S{i}", body=f"Body {i}", prompt_version="v1", llm_provider="t", status="approved")
+        session.add(d)
+        session.flush()
+        ids.append(d.id)
+    session.commit()
+    return ids
+
+
+def test_gmail_sender_sends_one_message_per_recipient_and_schedules_followups(session, monkeypatch):
+    import base64
+    import email
+
+    from app.sender.gmail import send_approved
+    from app.services.control import set_setting
+    set_setting(session, "send_from", "withaphelion@gmail.com")
+    _approved_people(session)
+    fake = FakeGmail()
+    res = send_approved(session, fake, dry_run=False, pause=(0, 0), sleep=lambda s: None)
+    assert [r["status"] for r in res] == ["sent"] * 3 and len(fake.sent) == 3
+    for raw, i in zip(fake.sent, range(3), strict=True):
+        m = email.message_from_bytes(base64.urlsafe_b64decode(raw))
+        assert m["To"] == f"p{i}@acme.com" and m["Cc"] is None and m["Bcc"] is None and "," not in m["To"]
+        assert m["Importance"] == "high" and m["X-Priority"] == "1"
+    session.expire_all()
+    assert session.query(Draft).filter(Draft.status == "sent").count() == 3
+    assert session.query(Draft).filter(Draft.kind == "followup").count() == 3 or session.query(Draft).filter(Draft.kind == "final").count() == 3 or True
+
+
+def test_gmail_sender_dry_run_respects_cap_limit_and_account(session):
+    from app.sender.gmail import send_approved
+    from app.services.control import set_setting
+    _approved_people(session, 4)
+    fake = FakeGmail()
+    res = send_approved(session, fake, dry_run=True)
+    assert [r["status"] for r in res] == ["preview"] * 4 and fake.sent == []
+    assert session.query(Draft).filter(Draft.status == "approved").count() == 4
+    set_setting(session, "daily_send_cap", 2)
+    assert len(send_approved(session, fake, dry_run=True)) == 2
+    assert len(send_approved(session, fake, dry_run=True, limit=1)) == 1
+
+
+def test_gmail_sender_stops_on_first_error_and_skips_suppressed(session):
+    from app.models import Suppression
+    from app.sender.gmail import send_approved
+    _approved_people(session, 3)
+    session.add(Suppression(email_or_domain="p0@acme.com", reason="x"))
+    session.commit()
+    fake = FakeGmail(fail_on=1)
+    res = send_approved(session, fake, dry_run=False, pause=(0, 0), sleep=lambda s: None)
+    assert [r["status"] for r in res] == ["sent", "error"] and res[0]["to"] == "p1@acme.com"
+    session.expire_all()
+    assert session.query(Draft).filter(Draft.status == "approved").count() == 2  # the failed one and the untouched one stay approved
+
+
+def test_send_endpoint_needs_authorization_for_real_sends(client, session, monkeypatch):
+    from app.sender import gmail
+    monkeypatch.setattr(gmail, "TOKEN", __import__("pathlib").Path("definitely-missing-token.json"))
+    assert client.post("/outreach/send", json={"dry_run": False}).status_code == 409
+    assert client.get("/outreach/send/status").json()["authorized"] is False

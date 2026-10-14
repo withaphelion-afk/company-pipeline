@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "llama3.1:8b"
     SMTP_PROBE_ENABLED: bool = False
     SMTP_PROBE_DOMAINS: str = ""
-    DAILY_SEND_CAP: int = 20
+    DAILY_SEND_CAP: int = 15  # 10-15 well-matched emails a day
     DRY_RUN_DEFAULT: bool = True
     DRAFT_MIN_CONFIDENCE: int = 80  # lower it to also draft for guessed (unverified) addresses; the UI labels them
     DRAFT_MIN_SCORE: int = 0

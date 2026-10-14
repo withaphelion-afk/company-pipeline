@@ -5,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 // The SPA owns /review and /control; the FastAPI app is reached through /api (prefix stripped).
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  preview: { port: 4173, proxy: { "/api": { target: "http://127.0.0.1:8000", rewrite: (p) => p.replace(/^\/api/, "") } } },
   server: {
     port: 5173,
     proxy: { "/api": { target: "http://127.0.0.1:8000", rewrite: (p) => p.replace(/^\/api/, "") } },

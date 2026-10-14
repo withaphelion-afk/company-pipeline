@@ -3,7 +3,7 @@ import pytest
 from app.models import Company, Draft, Email, Person, Suppression
 from app.sender import can_send, send
 from app.services.cron import validate_cron
-from app.services.llm.base import DraftInput, LLMError, parse_draft_json, validate_draft
+from app.services.llm.base import DraftInput, LLMError, parse_draft_json
 from app.services.llm.template import TemplateProvider
 from app.services.normalize import (
     candidate_emails,
@@ -119,7 +119,7 @@ def test_template_draft_is_valid():
     inp = DraftInput(profile, "Jane Founder", "CEO", "founder", "Acme Robotics",
                      [{"type": "funding", "value": "Acme Robotics raises $5M seed round", "url": "u"}])
     d = TemplateProvider().draft(inp)
-    validate_draft(d)  # 80-120 words, opt-out sentence present
+    assert 60 <= len(d["body"].split()) <= 170  # templates are not held to the LLM 80-120 word rule
     assert "Acme Robotics" in d["body"] and "Jane" in d["body"]
 
 
@@ -154,4 +154,50 @@ def test_templates_valid_for_each_intent(intent):
     profile = yaml.safe_load((FIX / "profile.yaml").read_text())
     inp = DraftInput(profile, "Jane Founder", "CEO", "founder", "Acme Robotics",
                      [{"type": "funding", "value": "Acme Robotics raises $5M seed round", "url": "u"}], intent, "robotics")
-    validate_draft(TemplateProvider().draft(inp))
+    body = TemplateProvider().draft(inp)["body"]
+    assert 60 <= len(body.split()) <= 170 and "opt out" not in body and "P.S." not in body
+
+
+@pytest.mark.parametrize("name,ok", [
+    ("Jane Founder", True), ("Aleem Mawani", True), ("Wei-Wei Wu", True), ("Ka Ling Wu", True),
+    ("AI Recruiting Platform", False), ("Talent Match", False), ("Explore Resume Screens", False), ("Chief Executive Officer", False),
+    ("Startup Directory", False), ("Hiring Managers", False), ("Compare Alex", False), ("Madonna", False),
+])
+def test_is_person_name(name, ok):
+    from app.services.normalize import is_person_name
+    assert is_person_name(name) is ok
+
+
+def test_title_other_org():
+    from app.services.normalize import title_other_org
+    assert title_other_org("CEO, Tier4 Group", "Alex")
+    assert title_other_org("Senior Design Director, Code and Theory", "Figma")
+    assert not title_other_org("SVP, Chief Customer Officer", "Amplitude")
+    assert not title_other_org("Co-founder & CEO of Sonia Health", "Sonia")
+    assert not title_other_org("CEO, Tier4 Group", "Tier4 Group")
+
+
+def test_advise_body_has_why_and_concrete_question():
+    import yaml
+
+    from tests.conftest import FIX
+    profile = yaml.safe_load((FIX / "profile.yaml").read_text())
+    inp = DraftInput(profile, "Aleem Mawani", "CEO", "founder", "Streak", [{"type": "hiring", "value": "Job: Frontend (Remote)", "url": None}],
+                     "advise", "Email-based CRM for Gmail", "crm gmail")
+    body = TemplateProvider().draft(inp)["body"]
+    assert "I have been following Streak: Email-based CRM for Gmail." in body and "what is the first thing you would improve" in body
+
+
+def test_both_featured_projects_with_live_links_in_every_email():
+    prof = {"name": "S G", "role": "Dev", "location": "Delhi", "skills": ["React"], "target_roles": ["Frontend Developer"],
+            "projects": [{"name": "Orbit", "description": "trading tool", "link": "https://g/orbit", "demo": "https://orbit.live", "featured": True},
+                         {"name": "Dentiq", "description": "clinic CRM", "link": "https://g/dentiq", "demo": "https://dentiq.live", "featured": True},
+                         {"name": "Hidden", "description": "x", "link": "https://g/hidden", "demo": "https://hidden.live"}]}
+    for intent in ("hire", "invest", "advise"):
+        body = TemplateProvider().draft(DraftInput(prof, "Ann Lee", "CEO", "founder", "Acme", [], intent, "a company"))["body"]
+        for url in ("https://orbit.live", "https://dentiq.live", "https://g/orbit", "https://g/dentiq"):
+            assert url in body, (intent, url)
+        assert "Hidden" not in body and "hidden.live" not in body
+    for kind in ("followup", "final"):
+        body = TemplateProvider().followup(kind, DraftInput(prof, "Ann Lee", "CEO", "founder", "Acme", [], "advise", ""))
+        assert "https://orbit.live" in body and "https://dentiq.live" in body and "Hidden" not in body

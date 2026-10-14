@@ -31,10 +31,33 @@ class TemplateProvider(LLMProvider):
     def __init__(self) -> None:
         self.env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), undefined=StrictUndefined, trim_blocks=True)
 
+    @staticmethod
+    def _why(inp: DraftInput, sig: dict[str, Any]) -> str:
+        """One sentence on why this person/company: the matching job for hiring, else their own one-liner, else the signal."""
+        value = sig["value"].removeprefix("Job: ")
+        if inp.intent == "hire" and sig["type"] == "hiring" and value:
+            return f'I noticed {inp.company} is hiring: "{value}".'
+        if inp.company_desc:
+            return f"I have been following {inp.company}: {inp.company_desc.strip().rstrip('.')}."
+        if value:
+            return f'{LEAD.get(sig["type"], LEAD["news"])} at {inp.company}: "{value}".'
+        return f"I came across {inp.company} and the work you are doing there."
+
+    def followup(self, kind: str, inp: DraftInput) -> str:
+        """Body for a follow-up ('followup') or the closing note ('final'); same facts as the first email."""
+        p = inp.profile
+        roles = p.get("target_roles") or [p.get("role", "engineering")]
+        proj = pick_project(p.get("projects") or [], inp.company_text) or {"name": "my work", "link": ""}
+        featured = [x for x in p.get("projects") or [] if x.get("featured")] or [proj]
+        return self.env.get_template(f"{kind}.j2").render(
+            first=inp.person_name.split()[0], company=inp.company, me=p["name"], project=proj, projects=featured,
+            project_names=" and ".join(x["name"] for x in featured), target_role=roles[0]).strip()
+
     def draft(self, inp: DraftInput) -> dict[str, str]:
         p = inp.profile
-        sig = inp.signals[0]
+        sig: dict[str, Any] = inp.signals[0] if inp.signals else {"type": "news", "value": "", "url": None}
         proj = pick_project(p.get("projects") or [], inp.company_text)
+        featured = [x for x in p.get("projects") or [] if x.get("featured")] or ([proj] if proj else [])
         roles = p.get("target_roles") or [p.get("role", "engineering")]
         ctx = {
             "first": inp.person_name.split()[0],
@@ -46,8 +69,11 @@ class TemplateProvider(LLMProvider):
             "location": p.get("location", ""),
             "skills": ", ".join((p.get("skills") or [])[:3]),
             "project": proj,
+            "projects": featured,
+            "project_names": " or ".join(x["name"] for x in featured),
             "target_role": roles[0],
             "intent": inp.intent,
+            "why": self._why(inp, sig),
         }
         body = self.env.get_template(f"outreach_{inp.intent if inp.intent in ('hire', 'invest', 'advise') else 'hire'}.j2").render(**ctx).strip()
         subject = self.env.get_template("subject.j2").render(**ctx).strip()

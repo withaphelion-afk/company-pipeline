@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import review_auth
 from app.core.db import get_session
 from app.models import Company, Draft, Email, Person, Signal, Suppression, now
+from app.services.outreach import allowance, ready_drafts, schedule_followups, set_outreach
 
 router = APIRouter(dependencies=[Depends(review_auth)])
 
@@ -112,18 +113,23 @@ def list_people(role_type: str | None = None, company_id: int | None = None, ema
 
 
 def draft_out(d: Draft) -> dict[str, Any]:
-    best = max(d.person.emails, key=lambda e: e.confidence, default=None)
+    best = max(d.person.emails, key=lambda e: (e.confidence, -e.id), default=None)
     return {"id": d.id, "status": d.status, "subject": d.subject, "body": d.body, "prompt_version": d.prompt_version,
             "llm_provider": d.llm_provider, "signals_used": d.signals_used, "created_at": d.created_at,
             "reviewed_at": d.reviewed_at, "person": {"id": d.person.id, "full_name": d.person.full_name, "title": d.person.title},
             "company": {"id": d.company.id, "name": d.company.name}, "to": best.address if best else None, "to_confidence": best.confidence if best else 0,
-            "to_status": best.status if best else None, "intent": d.person.intent, "score": d.person.score}
+            "to_status": best.status if best else None, "intent": d.person.intent, "score": d.person.score,
+            "kind": d.kind, "due_at": d.due_at, "outreach": d.person.outreach, "published": bool(best and best.confidence >= 80)}
 
 
 @router.get("/drafts")
 def list_drafts(status: str | None = None, s: Session = Depends(get_session)) -> list[dict[str, Any]]:
-    q = select(Draft).order_by(Draft.id)
-    if status:
+    q = select(Draft).order_by(Draft.due_at.is_(None).desc(), Draft.due_at, Draft.id)
+    if status == "scheduled":  # follow-ups that are not due yet
+        q = q.where(Draft.status == "pending", Draft.due_at > now())
+    elif status == "pending":
+        q = q.where(Draft.status == "pending", Draft.due_at.is_(None) | (Draft.due_at <= now()))
+    elif status:
         q = q.where(Draft.status == status)
     return [draft_out(d) for d in s.scalars(q.limit(500))]
 
@@ -155,8 +161,82 @@ def patch_draft(draft_id: int, patch: DraftPatch, s: Session = Depends(get_sessi
                 raise HTTPException(409, "recipient is on the suppression list")
         d.status = {"approve": "approved", "reject": "rejected", "skip": "skipped", "sent": "sent"}[patch.action]  # "sent" = you mailed it yourself
         d.reviewed_at = now()
+        if patch.action == "sent":  # you mailed it yourself: start the follow-up cadence
+            if d.person.outreach == "none":
+                d.person.outreach = "contacted"
+            schedule_followups(s, d)
+        if patch.action == "skip" and d.kind == "final":
+            d.person.outreach = "done"
     s.commit()
     return draft_out(d)
+
+
+class SendFrom(BaseModel):
+    send_from: str = ""
+
+
+@router.get("/outreach/settings")
+def get_outreach_settings(s: Session = Depends(get_session)) -> dict[str, Any]:
+    from app.services.control import get_setting
+    return {"send_from": get_setting(s, "send_from", "")}
+
+
+@router.put("/outreach/settings")
+def put_outreach_settings(b: SendFrom, s: Session = Depends(get_session)) -> dict[str, Any]:
+    from app.services.control import set_setting
+    addr = b.send_from.strip()
+    if addr and ("@" not in addr or " " in addr):
+        raise HTTPException(422, "send_from must be an email address (or empty)")
+    set_setting(s, "send_from", addr)
+    return {"send_from": addr}
+
+
+@router.get("/outreach/today")
+def outreach_today(s: Session = Depends(get_session)) -> dict[str, Any]:
+    """Approved drafts that are due, best first: published addresses before guesses, follow-ups before new emails.
+    `remaining` is the daily allowance left (rolling 24 hours); the UI never opens more than that."""
+    cap, sent, remaining = allowance(s)
+    return {"cap": cap, "sent_24h": sent, "remaining": remaining, "items": [draft_out(d) for d in ready_drafts(s)]}
+
+
+class SendIn(BaseModel):
+    dry_run: bool
+    limit: int | None = None
+
+
+@router.post("/outreach/send", status_code=202)
+def outreach_send(b: SendIn) -> dict[str, Any]:
+    """Send the approved drafts through the Gmail API in the background (or preview them with dry_run)."""
+    from app.services import send_runner
+
+    try:
+        send_runner.start(b.dry_run, b.limit)
+    except send_runner.Busy as e:
+        raise HTTPException(409, str(e)) from e
+    except Exception as e:
+        raise HTTPException(409, str(e)) from e
+    return send_runner.status()
+
+
+@router.get("/outreach/send/status")
+def outreach_send_status() -> dict[str, Any]:
+    from app.services import send_runner
+
+    return send_runner.status()
+
+
+class OutreachIn(BaseModel):
+    status: Literal["contacted", "replied", "declined", "done"]
+
+
+@router.patch("/people/{person_id}/outreach")
+def patch_outreach(person_id: int, b: OutreachIn, s: Session = Depends(get_session)) -> dict[str, Any]:
+    p = s.get(Person, person_id)
+    if p is None:
+        raise HTTPException(404, "person not found")
+    set_outreach(s, p, b.status)
+    s.commit()
+    return {"id": p.id, "outreach": p.outreach}
 
 
 class SuppressionIn(BaseModel):

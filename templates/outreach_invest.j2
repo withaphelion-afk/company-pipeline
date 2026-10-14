@@ -1,11 +1,14 @@
 Hi {{ first }},
 
-{{ lead }} at {{ company }}: "{{ signal }}". I am {{ me }}, a {{ role }} in {{ location }}, building products on my own. My latest is {{ project.name }}, {{ project.description }}{% if project.metric %} ({{ project.metric }}){% endif %}. {{ project.link }}
+{{ why }} I am {{ me }}, a {{ role }} in {{ location }}, building products on my own. Two of them:
 
-I am looking for early feedback and, if it fits your focus, a conversation about backing or introductions. May I send a one-page summary?
+{% for p in projects %}{{ p.name }}: {{ p.description }}{% if p.get('metric') %} ({{ p.metric }}){% endif %}
+
+Live: {{ p.get('demo') or p.get('link', '') }}
+Code: {{ p.link }}
+
+{% endfor %}I am looking for early feedback and, if it fits your focus, a conversation about backing or introductions. May I send a one-page summary?
 
 Thank you for your time.
 
 {{ me }}
-
-P.S. If you would rather not hear from me, just reply "opt out" and I will not contact you again.

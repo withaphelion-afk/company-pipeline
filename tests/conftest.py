@@ -7,7 +7,10 @@ os.environ.update(
     DATABASE_URL=f"sqlite:///{_tmp / 'test.db'}", DATA_DIR=str(_tmp / "data"), QUEUE_MODE="none",
     PROFILE_PATH=str(Path(__file__).parent / "fixtures" / "profile.yaml"), LLM_PROVIDER="template",
     SMTP_PROBE_ENABLED="false", CONTROL_API_TOKEN="", CONTACT_EMAIL="test@example.com",
+    AUTH_ENABLED="true", DRAFT_MIN_CONFIDENCE="80", DRAFT_MIN_SCORE="0", PROFILE_YAML="",  # never inherit a local .env
 )
+
+assert os.environ["DATABASE_URL"].startswith("sqlite"), "tests must never touch a real database"
 
 import httpx  # noqa: E402
 import pytest  # noqa: E402

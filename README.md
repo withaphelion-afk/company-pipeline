@@ -2,7 +2,7 @@
 
 **Version 0.2.0.** A free, public-data pipeline that finds companies and the people at them, scores each person against *your* profile and goals (get hired, find investors, find advisors), and drafts short outreach emails for you to review. A React app has a **Review UI** (jobs, companies, contacts, review queue, suppression) and a **Control Panel** (search & run, dashboard, live runs, schedules, sources, safety, history, cache).
 
-**Nothing is ever sent.** `app/sender/` is a stub (`send()` raises `NotImplementedError`); approving a draft only sets `status = approved`. You mail people yourself.
+**Nothing is sent without you.** Approving a draft only sets `status = approved`; sending happens only when you click Send in the app (Gmail API, local) or in a Gmail window yourself.
 
 ## How it works
 
@@ -71,9 +71,14 @@ Render needs `DATABASE_URL` (Neon string; `postgres://` is converted automatical
 
 **Auth:** with `AUTH_ENABLED=true` (default) the control API accepts only loopback unless `CONTROL_API_TOKEN` is set, and when it is set every route needs `Authorization: Bearer <token>`. The hosted deployment runs with `AUTH_ENABLED=false`, **so its URL is open to anyone who finds it**; turn auth back on if that matters.
 
-## Sending (by you, from Gmail)
+## Sending (from your own Gmail)
 
-Approved drafts get **Open in Gmail** (pre-filled compose window), **Copy** and **I sent it**; the app never sends. See [PITCH.md](PITCH.md) for which project to pitch to whom and how.
+Approved drafts go to **Send today**: published addresses first, up to your daily allowance (`DAILY_SEND_CAP`, default 15, rolling 24 h), each one a separate email to one person (no CC or BCC).
+
+- **Gmail API (fast, free, local only):** one-time setup: create a Google Cloud project, enable the Gmail API, set the OAuth consent screen to *External / Testing* and add your Gmail as a test user, create a *Desktop app* OAuth client and save it as `credentials.json` in the repo root; then run `python -m pipeline gmail-auth` and click Allow. Scope is `gmail.send` only. `credentials.json` and `token.json` are git-ignored. On **Send today**, *Preview (dry run)* lists what would go out, *Send N now* sends them with a short pause between each, marks them sent, and stops at the first error. Messages are flagged important (`Importance: high`).
+- **Or by hand:** *Open in Gmail* opens a pre-filled compose window per person (set "Send from" to choose the account) and *I sent it* logs it.
+
+Marking a first email sent schedules a day-4 follow-up and a day-10 last note for your review; replied/declined/done cancels them. Sending is local only: the hosted app never has your Gmail token.
 
 ## Safety and compliance
 

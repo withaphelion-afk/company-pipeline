@@ -36,6 +36,12 @@ Subject lines that work: `Remote Frontend role: built Aphelion (LinkedIn publish
 - **Invest:** "I'm building X for Y. Would you take a look at a one-page summary and tell me if it fits what you back?"
 - **Advise:** "What would you change first in this approach, and who should I talk to next?"
 
+## Doing it in the app
+
+1. **Review queue → To review**: edit, then Approve.
+2. **Send today**: shows what is ready, best first (published addresses, then follow-ups, then score), with your daily allowance (10 to 15, default 15, rolling 24 hours). Open each one by one, or tick several and **Open N in Gmail**: one separate Gmail window per person, no CC or BCC. Press Send in each, then **I sent it**.
+3. Marking sent schedules a **follow-up (day 4)** and a **last note (day 10)** as drafts; they show up in To review when due, and under *Scheduled follow-ups* until then. In the **Sent** tab click **They replied / They declined / Stop follow-ups** to cancel the rest (a decline also suppresses the address).
+
 ## Follow-up (once, politely)
 
 - Day 4 to 5: reply on the same thread with one new fact (a feature shipped, a result), not "just checking in".

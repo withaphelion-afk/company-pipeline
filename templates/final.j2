@@ -1,0 +1,6 @@
+Hi {{ first }},
+
+This is my last note, so I will not keep filling your inbox. If {{ company }} ever needs a {{ target_role }}, or you know someone who would like to see {{ project_names }} ({% for p in projects %}{{ p.get('demo') or p.get('link', '') }}{% if not loop.last %}, {% endif %}{% endfor %}), I would be glad to hear from you.
+
+Thank you,
+{{ me }}

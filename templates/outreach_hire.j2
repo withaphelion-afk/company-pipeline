@@ -1,16 +1,16 @@
 Hi {{ first }},
 
-{{ lead }} at {{ company }}: "{{ signal }}".
+{{ why }}
 
-I am {{ me }}, a {{ role }} based in {{ location }}, mostly working with {{ skills }}.
-{% if project %}
-Recently I built {{ project.name }}, {{ project.description }}{% if project.metric %} ({{ project.metric }}){% endif %}. You can see it here: {{ project.link }}.
-{% endif %}
+I am {{ me }}, a {{ role }} based in {{ location }}, mostly working with {{ skills }}. Two things I built:
 
-If a {{ target_role }} could be useful to your team, I would welcome a short conversation about where I might help.
+{% for p in projects %}{{ p.name }}: {{ p.description }}{% if p.get('metric') %} ({{ p.metric }}){% endif %}
+
+Live: {{ p.get('demo') or p.get('link', '') }}
+Code: {{ p.link }}
+
+{% endfor %}If a {{ target_role }} could be useful to your team, I would welcome a short conversation.
 
 Thank you for your time.
 
 {{ me }}
-
-P.S. If you would rather not hear from me, just reply "opt out" and I will not contact you again.

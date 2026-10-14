@@ -37,6 +37,14 @@ def cmd_purge(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_gmail_auth(_: argparse.Namespace) -> int:
+    from app.sender import gmail
+
+    gmail.load_credentials(interactive=True)  # opens your browser once; you click Allow
+    print("authorized; token saved to", gmail.TOKEN)
+    return 0
+
+
 def cmd_worker(_: argparse.Namespace) -> int:
     from rq import Queue, SimpleWorker
 
@@ -65,6 +73,8 @@ def main(argv: list[str] | None = None) -> None:
     pg = sub.add_parser("purge", help="delete a person with all emails and drafts")
     pg.add_argument("--person", type=int, required=True)
     pg.set_defaults(fn=cmd_purge)
+    g = sub.add_parser("gmail-auth", help="authorize the Gmail API once (opens your browser)")
+    g.set_defaults(fn=cmd_gmail_auth)
     w = sub.add_parser("worker", help="RQ worker + APScheduler")
     w.set_defaults(fn=cmd_worker)
     sys.exit(ns.fn(ns) if (ns := ap.parse_args(argv)) else 0)

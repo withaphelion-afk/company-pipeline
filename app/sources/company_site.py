@@ -4,7 +4,7 @@ from collections.abc import Iterable
 
 from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
-from app.services.normalize import split_name
+from app.services.normalize import is_person_name, split_name
 from app.sources.base import CompanyLike, PersonRaw, SignalRaw, Source
 
 PATHS = ["/about", "/team", "/contact", "/company"]
@@ -37,6 +37,8 @@ def extract_people(html: str, page_url: str) -> list[PersonRaw]:
             found.setdefault(lines[i - 1], ln)
     people = []
     for name, title in found.items():
+        if not is_person_name(name):
+            continue
         n = split_name(name)
         mail = next((e for e in sorted(emails) if n and any(p in e.split("@")[0] for p in n)), None)
         people.append(

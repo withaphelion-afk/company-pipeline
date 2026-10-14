@@ -1,11 +1,16 @@
 Hi {{ first }},
 
-{{ lead }} at {{ company }}: "{{ signal }}". I am {{ me }}, a {{ role }} in {{ location }}. I recently built {{ project.name }}, {{ project.description }}{% if project.metric %} ({{ project.metric }}){% endif %}. {{ project.link }}
+I am {{ me }}, a {{ role }} in {{ location }}. I recently built two products:
 
-Since you know this space well, I would value your honest view on one question: what would you change first, and who should I talk to next? A two-line reply would help a lot.
+{% for p in projects %}{{ p.name }}: {{ p.description }}{% if p.get('metric') %} ({{ p.metric }}){% endif %}
+
+Live: {{ p.get('demo') or p.get('link', '') }}
+Code: {{ p.link }}
+
+{% endfor %}{{ why }}
+
+One question: if you looked at {{ project_names }}, what is the first thing you would improve, and who would you suggest I talk to next? A two-line reply would help a lot.
 
 Thank you for your time.
 
 {{ me }}
-
-P.S. If you would rather not hear from me, just reply "opt out" and I will not contact you again.

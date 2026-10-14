@@ -42,7 +42,8 @@ def run(ctx: StageContext) -> None:
         sigs = sorted(sigs, key=lambda s: s.type != pref)  # lead with the signal that fits the goal
         used = [{"type": s.type, "value": s.value, "url": s.url} for s in sigs]
         text = f"{p.company.description or ''} {p.company.industry or ''}"
-        inp = DraftInput(profile, p.full_name, p.title, p.role_type, p.company.name, used, p.intent or "hire", text)
+        inp = DraftInput(profile, p.full_name, p.title, p.role_type, p.company.name, used, p.intent or "hire",
+                         p.company.description or "", text)
         used_provider = provider
         try:
             out = provider.draft(inp)

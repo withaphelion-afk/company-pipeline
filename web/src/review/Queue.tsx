@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { api, J } from "../api";
 import { Badge, Button, Card, ErrorNote } from "../ui";
 
@@ -27,6 +28,13 @@ function DraftCard({ d }: { d: J }) {
       <div className="flex flex-wrap gap-1 text-xs">
         {d.signals_used.map((s: J, i: number) => <span key={i} title={s.url ?? ""} className="rounded bg-blue-50 px-2 py-0.5"><b>{s.type}</b>: {s.value}</span>)}
       </div>
+      {d.kind !== "initial" && <div className="text-xs text-slate-500"><Badge tone="blue">{d.kind === "final" ? "last note" : "follow-up"}</Badge> due {d.due_at ? new Date(d.due_at).toLocaleDateString() : "now"}</div>}
+      {d.status === "sent" && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Badge tone={d.outreach === "replied" ? "green" : d.outreach === "declined" ? "red" : "slate"}>{d.outreach}</Badge>
+          {d.kind === "initial" && ["replied", "declined", "done"].map((s) => <Button key={s} onClick={() => api(`/people/${d.person.id}/outreach`, "PATCH", { status: s }).then(() => qc.invalidateQueries({ queryKey: ["drafts"] }))}>{s === "done" ? "Stop follow-ups" : `They ${s}`}</Button>)}
+        </div>
+      )}
       {edit ? (
         <>
           <input className="w-full rounded border px-2 py-1 text-sm" value={subject} onChange={(e) => setSubject(e.target.value)} />
@@ -64,9 +72,10 @@ export default function Queue() {
   const q = useQuery({ queryKey: ["drafts", tab], queryFn: () => api<J[]>(`/drafts?status=${tab}`) });
   return (
     <div className="space-y-3">
-      <div className="flex gap-1">{[["pending", "To review"], ["approved", "Ready to send"], ["sent", "Sent"]].map(([k, l]) => (
+      <div className="flex gap-1">{[["pending", "To review"], ["scheduled", "Scheduled follow-ups"], ["sent", "Sent"]].map(([k, l]) => (
         <button key={k} onClick={() => setTab(k)} className={`rounded px-3 py-1 text-sm ${tab === k ? "bg-slate-900 text-white" : "hover:bg-slate-200"}`}>{l}</button>))}</div>
       <ErrorNote error={q.error} />
+      <p className="text-xs text-slate-500">Approved drafts go to <Link className="text-blue-600 underline" to="/review/send">Send today</Link>: one Gmail window per person (no CC or BCC), 10 to 15 a day, published addresses first.</p>
       {q.data?.length === 0 && <p className="text-sm text-slate-500">Nothing here yet.</p>}
       {q.data?.map((d) => <DraftCard key={d.id} d={d} />)}
     </div>

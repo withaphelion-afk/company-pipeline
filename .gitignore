@@ -11,3 +11,5 @@ web/node_modules/
 web/dist/
 /profile.yaml
 *.db
+credentials.json
+token.json

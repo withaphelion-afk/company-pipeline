@@ -3,3 +3,5 @@ pytest>=8
 ruff>=0.5
 mypy>=1.10
 types-PyYAML
+google-api-python-client>=2.100
+google-auth-oauthlib>=1.2

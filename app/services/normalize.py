@@ -44,6 +44,32 @@ def classify_role(title: str | None) -> str:
     return "other"
 
 
+NOT_NAME_WORDS = {
+    "platform", "match", "explore", "screens", "compare", "directory", "startup", "talent", "hiring", "managers", "recruiting",
+    "recruiter", "recruitment", "ai", "chief", "executive", "officer", "technology", "operations", "president", "vice", "senior",
+    "director", "head", "product", "engineering", "design", "customer", "success", "marketing", "sales", "advisor", "clinical",
+    "board", "team", "careers", "about", "contact", "learn", "more", "blog", "press", "resume", "resumes", "ats", "demo",
+    "pricing", "login", "solutions", "features", "cofounder", "co-founder", "ceo", "cto", "cfo", "coo", "the",
+    "our", "your", "meet", "join", "get", "start", "book", "request", "see", "view", "read", "how", "why", "what", "ten", "x",
+}
+_ORG_AFTER_COMMA = re.compile(r",\s+(?!.*\b(chief|head|vp|svp|evp|director|officer|president|founder|manager|lead|engineer|counsel|ceo|cto|cfo|coo)\b)\S", re.I)
+
+
+def is_person_name(name: str) -> bool:
+    """Two or three capitalised words, none of them a page-heading or job-title word."""
+    parts = re.sub(r"[^\w\s'-]", "", name).split()
+    if not 2 <= len(parts) <= 3 or any(len(p) < 2 for p in parts):
+        return False
+    return not any(p.lower().strip("-'") in NOT_NAME_WORDS for p in parts)
+
+
+def title_other_org(title: str | None, company_name: str) -> bool:
+    """'CEO, Tier4 Group' on someone else's page: a customer quote, not an employee."""
+    t = title or ""
+    m = _ORG_AFTER_COMMA.search(t)
+    return bool(m) and normalize_name(company_name) not in normalize_name(t)
+
+
 def split_name(full_name: str) -> tuple[str, str] | None:
     parts = re.sub(r"[^\w\s'-]", "", full_name).split()
     return (parts[0].lower(), parts[-1].lower()) if len(parts) >= 2 else None

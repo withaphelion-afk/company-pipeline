@@ -3,6 +3,7 @@ import Companies from "./review/Companies";
 import Contacts from "./review/Contacts";
 import Jobs from "./review/Jobs";
 import ImportLinkedin from "./review/Import";
+import Send from "./review/Send";
 import Queue from "./review/Queue";
 import Suppression from "./review/Suppression";
 import Dashboard from "./control/Dashboard";
@@ -14,7 +15,7 @@ import Safety from "./control/Safety";
 import History from "./control/History";
 import Cache from "./control/Cache";
 
-const review = [["jobs", "Remote jobs"], ["companies", "Companies"], ["contacts", "Contacts"], ["queue", "Review queue"], ["import", "Import LinkedIn"], ["suppression", "Suppression"]];
+const review = [["jobs", "Remote jobs"], ["companies", "Companies"], ["contacts", "Contacts"], ["queue", "Review queue"], ["send", "Send today"], ["import", "Import LinkedIn"], ["suppression", "Suppression"]];
 const control = [["search", "Search & run"], ["dashboard", "Dashboard"], ["runs", "Live runs"], ["schedules", "Schedules"], ["sources", "Sources"], ["safety", "Safety"], ["history", "History"], ["cache", "Cache"]];
 
 function Nav({ base, items }: { base: string; items: string[][] }) {
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/review/companies" element={<Companies />} />
         <Route path="/review/contacts" element={<Contacts />} />
         <Route path="/review/queue" element={<Queue />} />
+        <Route path="/review/send" element={<Send />} />
         <Route path="/review/suppression" element={<Suppression />} />
         <Route path="/control" element={<Navigate to="/control/search" replace />} />
         <Route path="/control/search" element={<Search />} />
