@@ -203,3 +203,14 @@ def test_search_settings_and_one_click_pipeline(client):
     assert jobs[0]["stats"]["params"]["limit"] == 75 and jobs[5]["stats"]["params"]["limit"] is None
     client.post("/control/kill-switch", json={"enabled": True})
     assert client.post("/control/pipeline", json={"dry_run": True}).status_code == 423
+
+
+def test_jobs_endpoint_lists_matching_jobs(client, session):
+    co, p = seed(session)
+    session.add_all([Signal(company_id=co.id, type="hiring", value="Job: Frontend Engineer (Remote)", url="https://apply/1", source="hn_hiring"),
+                     Signal(company_id=co.id, type="hiring", value="4 open roles", source="greenhouse")])
+    session.commit()
+    r = client.get("/jobs").json()
+    assert r["total"] == 1 and r["items"][0]["job"] == "Frontend Engineer (Remote)"
+    assert r["items"][0]["apply_url"] == "https://apply/1" and r["items"][0]["best_contact"]["email"] == "jane@acme.com"
+    assert client.get("/jobs", params={"q": "backend"}).json()["total"] == 0

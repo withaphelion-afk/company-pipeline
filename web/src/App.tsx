@@ -1,6 +1,7 @@
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import Companies from "./review/Companies";
 import Contacts from "./review/Contacts";
+import Jobs from "./review/Jobs";
 import Queue from "./review/Queue";
 import Suppression from "./review/Suppression";
 import Dashboard from "./control/Dashboard";
@@ -12,7 +13,7 @@ import Safety from "./control/Safety";
 import History from "./control/History";
 import Cache from "./control/Cache";
 
-const review = [["companies", "Companies"], ["contacts", "Contacts"], ["queue", "Review queue"], ["suppression", "Suppression"]];
+const review = [["jobs", "Remote jobs"], ["companies", "Companies"], ["contacts", "Contacts"], ["queue", "Review queue"], ["suppression", "Suppression"]];
 const control = [["search", "Search & run"], ["dashboard", "Dashboard"], ["runs", "Live runs"], ["schedules", "Schedules"], ["sources", "Sources"], ["safety", "Safety"], ["history", "History"], ["cache", "Cache"]];
 
 function Nav({ base, items }: { base: string; items: string[][] }) {
@@ -36,7 +37,8 @@ export default function App() {
         </div>
       </header>
       <Routes>
-        <Route path="/" element={<Navigate to="/control/search" replace />} />
+        <Route path="/" element={<Navigate to="/review/jobs" replace />} />
+        <Route path="/review/jobs" element={<Jobs />} />
         <Route path="/review/companies" element={<Companies />} />
         <Route path="/review/contacts" element={<Contacts />} />
         <Route path="/review/queue" element={<Queue />} />

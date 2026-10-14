@@ -61,6 +61,25 @@ def get_company(company_id: int, s: Session = Depends(get_session)) -> dict[str,
             "signals": [signal_out(x) for x in sorted(c.signals, key=lambda x: x.observed_at or now(), reverse=True)]}
 
 
+@router.get("/jobs")
+def list_jobs(q: str | None = None, page: int = 1, page_size: int = 50, s: Session = Depends(get_session)) -> dict[str, Any]:
+    """Jobs that matched the saved search (title keyword + remote): one row per job signal, newest first."""
+    base = select(Signal, Company).join(Company, Company.id == Signal.company_id).where(Signal.type == "hiring", Signal.value.like("Job: %"))
+    if q:
+        base = base.where(Signal.value.ilike(f"%{q}%") | Company.name.ilike(f"%{q}%"))
+    total = s.scalar(select(func.count()).select_from(base.subquery())) or 0
+    rows = s.execute(base.order_by(Signal.observed_at.desc().nulls_last(), Signal.id.desc()).offset((page - 1) * page_size).limit(page_size))
+    items = []
+    for sg, co in rows:
+        people = [p for p in co.people if p.emails]
+        best = max(people, key=lambda p: p.score, default=None)
+        items.append({"id": sg.id, "job": sg.value[5:], "apply_url": sg.url, "source": sg.source, "observed_at": sg.observed_at,
+                      "company": {"id": co.id, "name": co.name, "domain": co.domain}, "contacts": len(co.people),
+                      "best_contact": {"name": best.full_name, "title": best.title, "email": max(best.emails, key=lambda e: e.confidence).address,
+                                       "confidence": max(e.confidence for e in best.emails)} if best else None})
+    return {"total": total, "items": items}
+
+
 @router.get("/people")
 def list_people(role_type: str | None = None, company_id: int | None = None, email_status: str | None = None,
                 intent: str | None = None, min_score: int = 0, s: Session = Depends(get_session)) -> list[dict[str, Any]]:
