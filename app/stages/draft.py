@@ -25,7 +25,7 @@ def run(ctx: StageContext) -> None:
         if p.id in drafted:
             continue
         ok = [e for e in p.emails if (e.status == "verified" or e.confidence >= min_conf) and e.address not in supp]
-        if p.score < min_score:
+        if p.score < min_score or (p.intent or "hire") not in ctx.search.get("goals", ["hire", "invest", "advise"]):
             continue
         if not ok:
             continue

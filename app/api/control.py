@@ -19,7 +19,8 @@ from app.jobs.runner import create_job
 from app.models import JobLog, JobRun, Schedule, SourceSetting, Suppression, now
 from app.services import control as ctl
 from app.services.cron import validate_cron
-from app.sources import REGISTRY
+from app.sources import RECOMMENDED, REGISTRY, STARTER_FILTERS
+from app.sources.base import DEFAULT_SEARCH
 from app.stages import STAGES
 
 router = APIRouter(prefix="/control", dependencies=[Depends(control_auth)])
@@ -199,6 +200,58 @@ def put_schedule(sid: int, b: ScheduleIn, s: Session = Depends(get_session)) -> 
         r.enabled = b.enabled
     s.commit()
     return schedule_out(r)
+
+
+# --- search + one-click pipeline -------------------------------------------
+class SearchIn(BaseModel):
+    roles: list[str] = Field(min_length=1)
+    remote_only: bool = True
+    goals: list[str] = Field(default_factory=lambda: ["hire", "invest", "advise"])
+
+
+@router.get("/search")
+def get_search(s: Session = Depends(get_session)) -> dict[str, Any]:
+    return {**DEFAULT_SEARCH, **(ctl.get_setting(s, "search") or {})}
+
+
+@router.put("/search")
+def put_search(b: SearchIn, s: Session = Depends(get_session)) -> dict[str, Any]:
+    bad = set(b.goals) - {"hire", "invest", "advise"}
+    if bad:
+        raise HTTPException(422, f"unknown goals {sorted(bad)}")
+    value = {"roles": [r.strip().lower() for r in b.roles if r.strip()], "remote_only": b.remote_only, "goals": b.goals}
+    ctl.set_setting(s, "search", value)
+    return value
+
+
+PIPELINE = [("discover", 150), ("resolve_domains", 60), ("find_contacts", 60), ("verify_email", 300),
+            ("enrich", 150), ("rank", None), ("draft", 100)]
+
+
+class PipelineIn(BaseModel):
+    dry_run: bool
+    scale: float = Field(1.0, gt=0, le=5)  # multiplies the per-stage limits
+
+
+@router.post("/pipeline", status_code=201)
+def run_pipeline(b: PipelineIn, s: Session = Depends(get_session)) -> dict[str, Any]:
+    """Queue every stage in order; the runner executes jobs oldest first, so they run as a chain."""
+    ids = [_new_job(s, JobIn(stage=st, limit=int(lim * b.scale) if lim else None, dry_run=b.dry_run))["id"] for st, lim in PIPELINE]
+    return {"ids": ids}
+
+
+@router.post("/sources/enable-recommended")
+def enable_recommended(s: Session = Depends(get_session)) -> dict[str, Any]:
+    for name in RECOMMENDED:
+        r = s.scalar(select(SourceSetting).where(SourceSetting.source_name == name))
+        if r is None:
+            r = SourceSetting(source_name=name, rate_limit_seconds=1.0, query_filters={})
+            s.add(r)
+        if not r.query_filters and name in STARTER_FILTERS:
+            r.query_filters = STARTER_FILTERS[name]
+        r.enabled = True
+    s.commit()
+    return {"enabled": RECOMMENDED}
 
 
 # --- sources -----------------------------------------------------------

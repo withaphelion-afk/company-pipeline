@@ -22,8 +22,13 @@ def score_person(role: str, company: Any, signals: list[Any], profile: dict[str,
     reasons: list[str] = []
     score = BASE.get(role, 8)
     hiring = [s for s in signals if s.type == "hiring"]
+    jobs = [s for s in hiring if s.value.startswith("Job: ")]  # already filtered to the saved role + remote search
     match = sorted(terms & tokens(" ".join(s.value for s in hiring)))
-    if match:
+    if jobs:
+        score += 30
+        match = match or ["job"]
+        reasons.append("remote job: " + jobs[0].value[5:70])
+    elif match:
         score += 25
         reasons.append("hiring for " + ", ".join(match[:3]))
     elif hiring or company.is_hiring:

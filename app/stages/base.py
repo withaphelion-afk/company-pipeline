@@ -8,9 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.core.db import SessionLocal, get_engine
 from app.models import JobLog, SourceSetting, Suppression
-from app.services.control import Cancelled, KillSwitchOn, cancel_requested, kill_switch_on
+from app.services.control import Cancelled, KillSwitchOn, cancel_requested, get_setting, kill_switch_on
 from app.services.http_client import HttpClient
 from app.sources import REGISTRY, Source
+from app.sources.base import DEFAULT_SEARCH
 
 # Test hooks: inject an httpx transport and force a rate limit of 0 without touching production code paths.
 HTTP_TRANSPORT: httpx.BaseTransport | None = None
@@ -34,6 +35,7 @@ class StageContext:
         self.warnings: list[str] = []
         self._ctl = SessionLocal()  # separate connection: logs/flags are visible to other processes immediately
         self._sources: dict[str, Source] = {}
+        self.search = {**DEFAULT_SEARCH, **(get_setting(self._ctl, "search") or {})}
         # SQLite (tests only) allows one writer, so logs wait for the stage transaction to end; Postgres logs live.
         self._buffer = get_engine().dialect.name == "sqlite"
         self._pending: list[tuple[str, str]] = []
@@ -89,7 +91,8 @@ class StageContext:
         if name not in self._sources:
             cls = REGISTRY[name]
             row = self.setting(name)
-            self._sources[name] = cls(self.client(name, row.rate_limit_seconds if row else None), row.query_filters if row else {})
+            self._sources[name] = src = cls(self.client(name, row.rate_limit_seconds if row else None), row.query_filters if row else {})
+            src.search = self.search
         return self._sources[name]
 
     def enabled_sources(self, names: list[str]) -> list[str]:

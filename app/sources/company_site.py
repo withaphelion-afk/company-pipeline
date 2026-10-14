@@ -15,6 +15,7 @@ TITLE_RE = re.compile(
     re.I,
 )
 SPLIT_RE = re.compile(r"\s*(?:,|\||—|–| - )\s*")
+ATS_RE = re.compile(r"(?:boards|job-boards)\.greenhouse\.io/(?:embed/job_board\?for=)?([\w-]+)|jobs\.lever\.co/([\w-]+)|jobs\.ashbyhq\.com/([\w-]+)")
 JUNK_EMAILS = ("example.", "sentry", "wixpress", ".png", ".jpg", ".svg")
 
 
@@ -48,10 +49,18 @@ class CompanySite(Source):
     name = "company_site"
 
     def fetch_signals(self, company: CompanyLike) -> Iterable[SignalRaw]:
-        """Most recent post/talk link if the site exposes a /blog index."""
+        """Find the company's job board (so its remote roles can be read), then its latest post/talk link."""
         if not company.domain:
             return
         base = f"https://{company.domain}"
+        if not company.extra.get("ats"):
+            for path in ("/careers", "/jobs"):
+                page = self.client.get_text(base + path, html=True)
+                m = ATS_RE.search(page or "")
+                if m:
+                    ats, slug = next((n, g) for n, g in zip(("greenhouse", "lever", "ashby"), m.groups(), strict=True) if g)
+                    company.extra = {**company.extra, "ats": ats, "slug": slug}
+                    break
         html = self.client.get_text(f"{base}/blog", html=True)
         if not html:
             return

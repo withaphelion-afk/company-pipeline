@@ -40,7 +40,7 @@ class TemplateProvider(LLMProvider):
             "first": inp.person_name.split()[0],
             "company": inp.company,
             "lead": LEAD.get(sig["type"], LEAD["news"]),
-            "signal": sig["value"],
+            "signal": sig["value"].removeprefix("Job: "),
             "me": p["name"],
             "role": p.get("role", "engineer"),
             "location": p.get("location", ""),

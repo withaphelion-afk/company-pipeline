@@ -67,7 +67,7 @@ def test_schedules_reject_fast_cron(client):
 
 def test_source_gating(client):
     srcs = {s["name"]: s for s in client.get("/control/sources").json()}
-    assert srcs["mca21"]["is_stub"] and len(srcs) == 8
+    assert srcs["mca21"]["is_stub"] and len(srcs) == 12
     r = client.put("/control/sources/mca21", json={"enabled": True})
     assert r.status_code == 422 and "stub" in r.json()["detail"]
     r = client.put("/control/sources/greenhouse", json={"enabled": True})
@@ -184,3 +184,22 @@ def test_purge_cli(session):
     session.expire_all()
     assert session.get(Person, pid) is None
     assert session.query(Email).count() == 0 and session.query(Draft).count() == 0
+
+
+def test_search_settings_and_one_click_pipeline(client):
+    assert client.get("/control/search").json()["remote_only"] is True
+    assert client.put("/control/search", json={"roles": [], "goals": ["hire"]}).status_code == 422
+    assert client.put("/control/search", json={"roles": ["Frontend ", "React"], "goals": ["poker"]}).status_code == 422
+    r = client.put("/control/search", json={"roles": ["Frontend ", "React"], "remote_only": False, "goals": ["hire"]}).json()
+    assert r == {"roles": ["frontend", "react"], "remote_only": False, "goals": ["hire"]}
+    assert client.get("/control/search").json() == r
+    names = client.post("/control/sources/enable-recommended").json()["enabled"]
+    assert "hn_hiring" in names and "greenhouse" in names
+    srcs = {s["name"]: s for s in client.get("/control/sources").json()}
+    assert srcs["greenhouse"]["enabled"] and srcs["greenhouse"]["query_filters"]["slugs"]
+    ids = client.post("/control/pipeline", json={"dry_run": True, "scale": 0.5}).json()["ids"]
+    jobs = [client.get(f"/control/jobs/{i}").json() for i in ids]
+    assert [j["stage"] for j in jobs] == ["discover", "resolve_domains", "find_contacts", "verify_email", "enrich", "rank", "draft"]
+    assert jobs[0]["stats"]["params"]["limit"] == 75 and jobs[5]["stats"]["params"]["limit"] is None
+    client.post("/control/kill-switch", json={"enabled": True})
+    assert client.post("/control/pipeline", json={"dry_run": True}).status_code == 423

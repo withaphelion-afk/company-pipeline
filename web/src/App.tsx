@@ -4,6 +4,7 @@ import Contacts from "./review/Contacts";
 import Queue from "./review/Queue";
 import Suppression from "./review/Suppression";
 import Dashboard from "./control/Dashboard";
+import Search from "./control/Search";
 import Runs from "./control/Runs";
 import Schedules from "./control/Schedules";
 import Sources from "./control/Sources";
@@ -12,7 +13,7 @@ import History from "./control/History";
 import Cache from "./control/Cache";
 
 const review = [["companies", "Companies"], ["contacts", "Contacts"], ["queue", "Review queue"], ["suppression", "Suppression"]];
-const control = [["dashboard", "Dashboard"], ["runs", "Live runs"], ["schedules", "Schedules"], ["sources", "Sources"], ["safety", "Safety"], ["history", "History"], ["cache", "Cache"]];
+const control = [["search", "Search & run"], ["dashboard", "Dashboard"], ["runs", "Live runs"], ["schedules", "Schedules"], ["sources", "Sources"], ["safety", "Safety"], ["history", "History"], ["cache", "Cache"]];
 
 function Nav({ base, items }: { base: string; items: string[][] }) {
   return (
@@ -35,12 +36,13 @@ export default function App() {
         </div>
       </header>
       <Routes>
-        <Route path="/" element={<Navigate to="/review/queue" replace />} />
+        <Route path="/" element={<Navigate to="/control/search" replace />} />
         <Route path="/review/companies" element={<Companies />} />
         <Route path="/review/contacts" element={<Contacts />} />
         <Route path="/review/queue" element={<Queue />} />
         <Route path="/review/suppression" element={<Suppression />} />
-        <Route path="/control" element={<Navigate to="/control/dashboard" replace />} />
+        <Route path="/control" element={<Navigate to="/control/search" replace />} />
+        <Route path="/control/search" element={<Search />} />
         <Route path="/control/dashboard" element={<Dashboard />} />
         <Route path="/control/runs" element={<Runs />} />
         <Route path="/control/schedules" element={<Schedules />} />

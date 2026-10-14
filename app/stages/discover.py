@@ -1,4 +1,4 @@
-from app.services.dedupe import upsert_company
+from app.services.dedupe import upsert_company, upsert_person, upsert_signal
 from app.sources import SEED_SOURCES
 from app.stages.base import StageContext
 
@@ -23,7 +23,13 @@ def run(ctx: StageContext) -> None:
         for raw in src.fetch_companies():
             ctx.check()
             try:
-                _, created = upsert_company(ctx.session, raw)
+                co, created = upsert_company(ctx.session, raw)
+                for sg in raw.signals:
+                    if upsert_signal(ctx.session, co, sg):
+                        ctx.count(f"signals_{sg.type}")
+                for pr in raw.people:
+                    upsert_person(ctx.session, co, pr)
+                    ctx.count("people_from_source")
                 ctx.count("companies_created" if created else "companies_updated")
                 new += created
             except Exception as e:  # one bad record must not kill the run

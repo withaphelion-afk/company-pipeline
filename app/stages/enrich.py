@@ -9,7 +9,7 @@ from app.stages.base import StageContext
 def run(ctx: StageContext) -> None:
     names = ctx.enabled_sources(SIGNAL_SOURCES)
     if not ctx.source_name and "company_site" not in names:
-        names.append("company_site")  # latest blog/talk link; always robots-gated, no config needed
+        names.insert(0, "company_site")  # finds the job board + latest post; robots-gated, no config needed
     companies = [c for c in ctx.session.scalars(select(Company).order_by(Company.id)) if not (c.extra or {}).get("enriched")]
     companies = companies[: ctx.limit] if ctx.limit else companies
     errors = 0
