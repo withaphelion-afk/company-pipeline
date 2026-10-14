@@ -43,6 +43,8 @@ def upsert_person(s: Session, company: Company, raw: PersonRaw) -> tuple[Person,
         s.add(p)
     p.title = raw.title or p.title
     p.role_type = classify_role(p.title)
+    if (company.extra or {}).get("kind") == "investor" and (p.role_type in ("founder", "exec") or "partner" in (p.title or "").lower()):
+        p.role_type = "investor"
     for f in ("linkedin_url", "twitter_url", "github_url"):
         if getattr(raw, f):
             setattr(p, f, getattr(raw, f))

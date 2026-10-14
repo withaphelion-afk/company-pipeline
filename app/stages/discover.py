@@ -8,7 +8,7 @@ def run(ctx: StageContext) -> None:
     if not names:
         ctx.log("warn", "no enabled seed sources (enable one under Sources, or pass --source)")
         return
-    done = errors = 0
+    done = errors = new = 0
     for name in names:
         src = ctx.source(name)
         if src.is_stub:
@@ -25,10 +25,11 @@ def run(ctx: StageContext) -> None:
             try:
                 _, created = upsert_company(ctx.session, raw)
                 ctx.count("companies_created" if created else "companies_updated")
+                new += created
             except Exception as e:  # one bad record must not kill the run
                 errors += 1
                 ctx.log("error", f"{name}: {raw.name}: {e}")
             done += 1
-            ctx.progress(done, ctx.limit or done, errors)
-            if ctx.limit and done >= ctx.limit:
+            ctx.progress(new, ctx.limit or done, errors)
+            if ctx.limit and new >= ctx.limit:  # limit = new companies, so repeated runs page through a source
                 return

@@ -4,12 +4,21 @@ ycombinator.com/companies renders client-side from an Algolia index that needs a
 so we do not call it. Default endpoint is the community-maintained static JSON mirror (yc-oss, GitHub Pages: free,
 no key). Override with query_filters.endpoint to point at any compatible JSON list.
 """
+import re
 from collections.abc import Iterable
 from typing import Any
 
 from app.sources.base import CompanyRaw, Source
 
 DEFAULT_ENDPOINT = "https://yc-oss.github.io/api/companies/all.json"
+
+
+def expand_batch(b: str | None) -> str | None:
+    """W24 -> Winter 2024 (the directory's own spelling); other values pass through."""
+    m = re.fullmatch(r"([WSFX])(\d{2})", (b or "").strip(), re.I)
+    if not m:
+        return b
+    return f"{ {'W': 'Winter', 'S': 'Summer', 'F': 'Fall', 'X': 'Spring'}[m[1].upper()] } 20{m[2]}"
 
 
 class YCombinator(Source):
@@ -19,9 +28,11 @@ class YCombinator(Source):
     def fetch_companies(self, query: dict[str, Any] | None = None) -> Iterable[CompanyRaw]:
         f = {**self.filters, **(query or {})}
         data = self.client.get_json(f.get("endpoint", DEFAULT_ENDPOINT)) or []
-        batch, industry = f.get("batch"), (f.get("industry") or "").lower()
+        want = f.get("batch")
+        batches = {want, expand_batch(want)} if want else set()
+        industry = (f.get("industry") or "").lower()
         for c in data:
-            if batch and c.get("batch") != batch:
+            if batches and c.get("batch") not in batches:
                 continue
             if industry and industry not in (c.get("industry") or "").lower():
                 continue

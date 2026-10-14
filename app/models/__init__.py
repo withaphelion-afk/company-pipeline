@@ -64,6 +64,9 @@ class Person(Base):
     twitter_url: Mapped[str | None] = mapped_column(String(500))
     github_url: Mapped[str | None] = mapped_column(String(500))
     extra: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)  # found_email, found_email_url
+    score: Mapped[int] = mapped_column(Integer, default=0, index=True)  # relevance to the profile, 0-100
+    intent: Mapped[str | None] = mapped_column(String(10))  # hire | invest | advise
+    reason: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str | None] = mapped_column(String(50))
     fetched_at: Mapped[datetime | None] = _dt()
     company: Mapped[Company] = relationship(back_populates="people")

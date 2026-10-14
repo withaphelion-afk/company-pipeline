@@ -1,5 +1,6 @@
 from sqlalchemy import select
 
+from app.core.config import get_settings
 from app.models import Draft, Person, Signal
 from app.services.llm import get_provider
 from app.services.llm.base import PROMPT_VERSION, DraftInput, LLMError
@@ -16,13 +17,16 @@ def run(ctx: StageContext) -> None:
         ctx.log("warn", f"{provider.name} unreachable; falling back to template provider")
         provider = template
     supp = ctx.suppressed()
+    min_conf, min_score = get_settings().DRAFT_MIN_CONFIDENCE, get_settings().DRAFT_MIN_SCORE
     drafted = {p for (p,) in ctx.session.execute(select(Draft.person_id))}
-    people = list(ctx.session.scalars(select(Person).order_by(Person.id)))
+    people = list(ctx.session.scalars(select(Person).order_by(Person.score.desc(), Person.id)))  # best matches first
     todo = []
     for p in people:
         if p.id in drafted:
             continue
-        ok = [e for e in p.emails if (e.status == "verified" or e.confidence >= 80) and e.address not in supp]
+        ok = [e for e in p.emails if (e.status == "verified" or e.confidence >= min_conf) and e.address not in supp]
+        if p.score < min_score:
+            continue
         if not ok:
             continue
         sigs = list(ctx.session.scalars(
@@ -34,8 +38,11 @@ def run(ctx: StageContext) -> None:
     errors = 0
     for i, (p, sigs) in enumerate(todo, 1):
         ctx.check()
+        pref = {"hire": "hiring", "invest": "funding"}.get(p.intent or "", "")
+        sigs = sorted(sigs, key=lambda s: s.type != pref)  # lead with the signal that fits the goal
         used = [{"type": s.type, "value": s.value, "url": s.url} for s in sigs]
-        inp = DraftInput(profile, p.full_name, p.title, p.role_type, p.company.name, used)
+        text = f"{p.company.description or ''} {p.company.industry or ''}"
+        inp = DraftInput(profile, p.full_name, p.title, p.role_type, p.company.name, used, p.intent or "hire", text)
         used_provider = provider
         try:
             out = provider.draft(inp)

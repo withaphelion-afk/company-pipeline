@@ -19,7 +19,7 @@ def email_out(e: Email) -> dict[str, Any]:
 
 def person_out(p: Person, with_company: bool = False) -> dict[str, Any]:
     d = {"id": p.id, "company_id": p.company_id, "full_name": p.full_name, "title": p.title, "role_type": p.role_type,
-         "linkedin_url": p.linkedin_url, "twitter_url": p.twitter_url, "github_url": p.github_url, "source": p.source,
+         "score": p.score, "intent": p.intent, "reason": p.reason, "linkedin_url": p.linkedin_url, "twitter_url": p.twitter_url, "github_url": p.github_url, "source": p.source,
          "emails": [email_out(e) for e in sorted(p.emails, key=lambda e: -e.confidence)]}
     if with_company:
         d["company_name"] = p.company.name
@@ -63,8 +63,10 @@ def get_company(company_id: int, s: Session = Depends(get_session)) -> dict[str,
 
 @router.get("/people")
 def list_people(role_type: str | None = None, company_id: int | None = None, email_status: str | None = None,
-                s: Session = Depends(get_session)) -> list[dict[str, Any]]:
-    q = select(Person).order_by(Person.id)
+                intent: str | None = None, min_score: int = 0, s: Session = Depends(get_session)) -> list[dict[str, Any]]:
+    q = select(Person).where(Person.score >= min_score).order_by(Person.score.desc(), Person.id)
+    if intent:
+        q = q.where(Person.intent == intent)
     if role_type:
         q = q.where(Person.role_type == role_type)
     if company_id:
@@ -79,7 +81,8 @@ def draft_out(d: Draft) -> dict[str, Any]:
     return {"id": d.id, "status": d.status, "subject": d.subject, "body": d.body, "prompt_version": d.prompt_version,
             "llm_provider": d.llm_provider, "signals_used": d.signals_used, "created_at": d.created_at,
             "reviewed_at": d.reviewed_at, "person": {"id": d.person.id, "full_name": d.person.full_name, "title": d.person.title},
-            "company": {"id": d.company.id, "name": d.company.name}, "to": best.address if best else None}
+            "company": {"id": d.company.id, "name": d.company.name}, "to": best.address if best else None, "to_confidence": best.confidence if best else 0,
+            "to_status": best.status if best else None, "intent": d.person.intent, "score": d.person.score}
 
 
 @router.get("/drafts")

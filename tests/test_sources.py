@@ -131,3 +131,18 @@ def test_rate_limiter_spaces_requests():
     rl.wait("h", 2)
     rl.wait("other", 2)
     assert slept == [2.0]
+
+
+def test_press_rss_investor_firms_become_companies():
+    from app.sources.press_rss import investor_names
+    assert investor_names("Acme raises $5M seed led by Sequoia Capital and Accel, with participation from Peak XV.") == ["Sequoia Capital", "Accel", "Peak XV"]
+    assert investor_names("Round led by existing investors.") == []
+    feed = '<rss version="2.0"><channel><title>t</title><item><title>Beta raises $9M Series A led by Matrix Partners</title><link>https://n/b</link></item></channel></rss>'
+    src = PressRss(mk("press_rss", {"https://f.example/f": feed}), {"feeds": ["https://f.example/f"]})
+    (c,) = list(src.fetch_companies())
+    assert c.name == "Matrix Partners" and c.extra["kind"] == "investor"
+
+
+def test_yc_batch_alias():
+    from app.sources.ycombinator import expand_batch
+    assert [expand_batch(x) for x in ("W24", "s23", "Fall 2024", None)] == ["Winter 2024", "Summer 2023", "Fall 2024", None]

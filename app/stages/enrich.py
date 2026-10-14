@@ -10,7 +10,8 @@ def run(ctx: StageContext) -> None:
     names = ctx.enabled_sources(SIGNAL_SOURCES)
     if not ctx.source_name and "company_site" not in names:
         names.append("company_site")  # latest blog/talk link; always robots-gated, no config needed
-    companies = list(ctx.session.scalars(select(Company).order_by(Company.id).limit(ctx.limit or 10_000)))
+    companies = [c for c in ctx.session.scalars(select(Company).order_by(Company.id)) if not (c.extra or {}).get("enriched")]
+    companies = companies[: ctx.limit] if ctx.limit else companies
     errors = 0
     for i, co in enumerate(companies, 1):
         for name in names:
@@ -24,4 +25,5 @@ def run(ctx: StageContext) -> None:
             except Exception as e:
                 errors += 1
                 ctx.log("error", f"{name}: {co.name}: {e}")
+        co.extra = {**(co.extra or {}), "enriched": True}
         ctx.progress(i, len(companies), errors)

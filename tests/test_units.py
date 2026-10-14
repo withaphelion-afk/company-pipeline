@@ -121,3 +121,37 @@ def test_template_draft_is_valid():
     d = TemplateProvider().draft(inp)
     validate_draft(d)  # 80-120 words, opt-out sentence present
     assert "Acme Robotics" in d["body"] and "Jane" in d["body"]
+
+
+def test_investor_role():
+    assert classify_role("General Partner") == "investor"
+    assert classify_role("Angel Investor") == "investor"
+    assert classify_role("Partner Manager") == "other"
+
+
+def test_relevance_scoring_and_intent():
+    from types import SimpleNamespace as NS
+
+    from app.services.relevance import score_person
+    prof = {"skills": ["React", "TypeScript"], "target_roles": ["Frontend Developer"], "projects": [{"tags": ["fintech", "trading"]}]}
+    co = NS(name="Acme", is_hiring=True, description="A fintech trading platform", industry="Fintech", extra={})
+    hire = [NS(type="hiring", value="4 open roles, including Frontend Engineer (React)")]
+    score, intent, why = score_person("founder", co, hire, prof, 30)
+    assert intent == "hire" and score >= 65 and "react" in why
+    s2, i2, _ = score_person("recruiter", co, [], prof, 0)
+    assert i2 == "hire" and s2 < score
+    vc = NS(name="VC", is_hiring=False, description="", industry="", extra={"kind": "investor"})
+    assert score_person("investor", vc, [], prof, 0)[1] == "invest"
+    plain = NS(name="X", is_hiring=False, description="", industry="", extra={})
+    assert score_person("other", plain, [], prof, 0)[1] == "advise"
+
+
+@pytest.mark.parametrize("intent", ["hire", "invest", "advise"])
+def test_templates_valid_for_each_intent(intent):
+    import yaml
+
+    from tests.conftest import FIX
+    profile = yaml.safe_load((FIX / "profile.yaml").read_text())
+    inp = DraftInput(profile, "Jane Founder", "CEO", "founder", "Acme Robotics",
+                     [{"type": "funding", "value": "Acme Robotics raises $5M seed round", "url": "u"}], intent, "robotics")
+    validate_draft(TemplateProvider().draft(inp))

@@ -25,6 +25,7 @@ def name_slug(name: str) -> str:
     return normalize_name(name).replace(" ", "")
 
 
+_INVESTOR = re.compile(r"\b(investor|angel|venture|vc|general partner|managing partner|investment)\b", re.I)
 _FOUNDER = re.compile(r"\b(co-?founder|founder|ceo|cto|chief executive|chief technology)\b", re.I)
 _RECRUITER = re.compile(r"\b(talent|recruit\w*|people ops|people operations|head of hiring|hr)\b", re.I)
 _EXEC = re.compile(r"\b(vp|vice president|head|director|chief|cfo|coo|cmo)\b", re.I)
@@ -32,6 +33,8 @@ _EXEC = re.compile(r"\b(vp|vice president|head|director|chief|cfo|coo|cmo)\b", r
 
 def classify_role(title: str | None) -> str:
     t = title or ""
+    if _INVESTOR.search(t):
+        return "investor"
     if _FOUNDER.search(t):
         return "founder"
     if _RECRUITER.search(t):

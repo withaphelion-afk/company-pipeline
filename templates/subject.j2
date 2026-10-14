@@ -1,1 +1,1 @@
-{{ role }} interested in {{ company }}
+{% if intent == "invest" %}A product I am building, for your view{% elif intent == "advise" %}Quick question about {{ company }}'s space{% else %}{{ role }} interested in {{ company }}{% endif %}

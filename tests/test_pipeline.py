@@ -201,3 +201,31 @@ def test_threaded_runner_picks_up_queued_job(session, monkeypatch):
     finally:
         threaded.stop()
     assert session.get(JobRun, jid).status == "succeeded" and session.get(JobRun, stale).status == "failed"
+
+
+def test_rank_and_draft_use_intent_and_guessed_addresses(session, configured, monkeypatch):
+    from app.core.config import get_settings
+    monkeypatch.setattr(dns_tools, "has_mx", lambda d: True)
+    monkeypatch.setattr(get_settings(), "DRAFT_MIN_CONFIDENCE", 30)
+    for stage in ("discover", "find_contacts", "verify_email", "enrich", "rank", "draft"):
+        assert run(stage)[0] == "succeeded", stage
+    people = list(session.scalars(select(Person).order_by(Person.score.desc())))
+    assert all(p.intent in ("hire", "invest", "advise") and p.reason for p in people)
+    assert session.scalar(select(func.count()).select_from(Draft)) >= 2  # guessed addresses draft too when allowed
+
+
+def test_discover_limit_counts_new_companies(session, configured):
+    run("discover", limit=1)
+    assert session.scalar(select(func.count()).select_from(Company)) == 1
+
+
+def test_stages_do_not_repeat_work(session, configured, monkeypatch):
+    monkeypatch.setattr(dns_tools, "has_mx", lambda d: True)
+    for stage in ("discover", "find_contacts", "verify_email", "enrich"):
+        run(stage)
+    n = counts(session)
+    _, jid = run("find_contacts")
+    run("verify_email")
+    run("enrich")
+    session.expire_all()
+    assert counts(session) == n and session.get(JobRun, jid).stats["progress"]["total"] == 0

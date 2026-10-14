@@ -43,6 +43,7 @@ class OllamaProvider(LLMProvider):
             "sender": inp.profile,
             "recipient": {"name": inp.person_name, "title": inp.person_title, "company": inp.company},
             "signals": inp.signals,
+            "goal": {"hire": "ask about a role", "invest": "share a product and ask for feedback or backing", "advise": "ask for advice"}.get(inp.intent, "introduce"),
         }
         prompt = json.dumps(facts, ensure_ascii=False)
         last: LLMError | None = None

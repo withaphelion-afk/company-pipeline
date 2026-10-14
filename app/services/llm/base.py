@@ -19,6 +19,8 @@ class DraftInput:
     role_type: str
     company: str
     signals: list[dict[str, Any]]  # {type, value, url}
+    intent: str = "hire"  # hire | invest | advise
+    company_text: str = ""  # description + industry, used to pick the most relevant project
 
 
 class LLMProvider:

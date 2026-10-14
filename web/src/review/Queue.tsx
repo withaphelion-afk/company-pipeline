@@ -17,6 +17,8 @@ function DraftCard({ d }: { d: J }) {
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <strong>{d.person.full_name}</strong><span className="text-slate-500">{d.person.title}</span>
         <span>@ {d.company.name}</span><span className="text-slate-500">&lt;{d.to ?? "no email"}&gt;</span>
+        {d.to && (d.to_status === "verified" ? <Badge tone="green">verified</Badge> : <Badge tone="amber">{d.to_confidence >= 80 ? "likely" : "guess, may bounce"}</Badge>)}
+        {d.intent && <Badge tone="blue">{d.intent} · score {d.score}</Badge>}
         <Badge>{d.llm_provider}</Badge>
       </div>
       <div className="flex flex-wrap gap-1 text-xs">

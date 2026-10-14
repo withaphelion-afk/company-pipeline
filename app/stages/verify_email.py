@@ -21,7 +21,7 @@ def run(ctx: StageContext) -> None:
     supp = ctx.suppressed()
     people = [
         p for p in ctx.session.scalars(select(Person).order_by(Person.id))
-        if p.company.domain and not any(e.status == "verified" for e in p.emails)
+        if p.company.domain and not p.emails
     ]
     people = people[: ctx.limit] if ctx.limit else people
     mx_cache: dict[str, bool] = {}

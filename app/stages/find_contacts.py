@@ -15,7 +15,8 @@ def _people_sources(ctx: StageContext) -> list[str]:
 
 def run(ctx: StageContext) -> None:
     q = select(Company).where(Company.domain.is_not(None)).order_by(Company.id)
-    companies = list(ctx.session.scalars(q.limit(ctx.limit) if ctx.limit else q))
+    companies = [c for c in ctx.session.scalars(q) if not (c.extra or {}).get("contacts_scanned")]
+    companies = companies[: ctx.limit] if ctx.limit else companies
     names = _people_sources(ctx)
     errors = 0
     for i, co in enumerate(companies, 1):
@@ -28,4 +29,5 @@ def run(ctx: StageContext) -> None:
             except Exception as e:
                 errors += 1
                 ctx.log("error", f"{name}: {co.domain}: {e}")
+        co.extra = {**(co.extra or {}), "contacts_scanned": True}
         ctx.progress(i, len(companies), errors)

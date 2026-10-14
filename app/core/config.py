@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     SMTP_PROBE_DOMAINS: str = ""
     DAILY_SEND_CAP: int = 20
     DRY_RUN_DEFAULT: bool = True
+    DRAFT_MIN_CONFIDENCE: int = 80  # lower it to also draft for guessed (unverified) addresses; the UI labels them
+    DRAFT_MIN_SCORE: int = 0
     CONTROL_API_TOKEN: str = ""
     AUTH_ENABLED: bool = True  # false: no auth on any route (public deployments become open to anyone)
     DATA_DIR: Path = Path("./data")
