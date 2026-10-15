@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     DRAFT_MIN_CONFIDENCE: int = 80  # lower it to also draft for guessed (unverified) addresses; the UI labels them
     DRAFT_MIN_SCORE: int = 0
     CONTROL_API_TOKEN: str = ""
+    INGEST_TOKEN: str = ""  # if set, the Maps crawler must send it (X-Ingest-Token) to add leads / claim searches
     AUTH_ENABLED: bool = True  # false: no auth on any route (public deployments become open to anyone)
     DATA_DIR: Path = Path("./data")
     PROFILE_PATH: Path = Path("./profile.yaml")

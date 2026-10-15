@@ -2,17 +2,20 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, J } from "../api";
 import { Badge, Card, ErrorNote, td, th } from "../ui";
-import { STATUSES, pitchFor, whatsapp } from "./util";
+import SearchSelect from "./SearchSelect";
+import { SITE_LABEL, STATUSES, pitchFor, whatsapp } from "./util";
 
 export default function Leads() {
   const qc = useQueryClient();
-  const [noSite, setNoSite] = useState(true);
+  const [site, setSite] = useState("none");
   const [status, setStatus] = useState("");
   const [text, setText] = useState("");
+  const [search, setSearch] = useState("");
   const qs = new URLSearchParams({ page_size: "200" });
-  if (noSite) qs.set("no_website", "true");
+  qs.set("site", site);
   if (status) qs.set("status", status);
   if (text) qs.set("q", text);
+  if (search) qs.set("search", search);
   const q = useQuery({ queryKey: ["leads", qs.toString()], queryFn: () => api<J>(`/leads?${qs}`) });
   const tpl = useQuery({ queryKey: ["pitch"], queryFn: () => api<J>("/leads/pitch") });
   const set = useMutation({
@@ -22,7 +25,10 @@ export default function Leads() {
   return (
     <Card>
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
-        <label><input type="checkbox" checked={noSite} onChange={(e) => setNoSite(e.target.checked)} /> No website only</label>
+        <SearchSelect value={search} onChange={setSearch} />
+        <select value={site} onChange={(e) => setSite(e.target.value)}>
+          <option value="none">No website (verified)</option><option value="probable">Probable site</option><option value="unknown">Not checked yet</option><option value="has">Has website</option><option value="any">Any website status</option>
+        </select>
         <select className="border px-2 py-1" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Any status</option>{STATUSES.map((s) => <option key={s}>{s}</option>)}
         </select>
@@ -40,7 +46,7 @@ export default function Leads() {
                 <td className={td}><b>{l.score}</b></td>
                 <td className={td}>{l.name}<div className="text-xs text-mist-500">{l.category} · {l.address}</div><div className="text-xs text-mist-500">{l.rating}</div></td>
                 <td className={td}>{l.phone || "—"}</td>
-                <td className={td}>{l.has_website ? <Badge tone="slate">has site</Badge> : <Badge tone="green">none</Badge>}</td>
+                <td className={td}><Badge tone={SITE_LABEL[l.website_status]?.[1]}>{SITE_LABEL[l.website_status]?.[0] ?? l.website_status}</Badge>{l.website_evidence && <div className="mt-1 max-w-48 text-xs text-mist-500">{l.website_evidence}</div>}</td>
                 <td className={td}>
                   <select className="border px-1 py-0.5 text-sm" value={l.status} onChange={(e) => set.mutate({ id: l.id, status: e.target.value })}>
                     {STATUSES.map((s) => <option key={s}>{s}</option>)}

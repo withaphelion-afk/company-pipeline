@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, J } from "../api";
 import { Button, Card, ErrorNote } from "../ui";
+import SearchSelect from "./SearchSelect";
 import { pitchFor, whatsapp } from "./util";
 
 export default function Pitch() {
   const qc = useQueryClient();
   const tpl = useQuery({ queryKey: ["pitch"], queryFn: () => api<J>("/leads/pitch") });
-  const leads = useQuery({ queryKey: ["leads", "pitch"], queryFn: () => api<J>("/leads?no_website=true&status=new&page_size=50") });
+  const [search, setSearch] = useState("");
+  const leads = useQuery({ queryKey: ["leads", "pitch", search], queryFn: () => api<J>(`/leads?site=none&status=new&page_size=50${search ? `&search=${encodeURIComponent(search)}` : ""}`) });
   const [text, setText] = useState("");
   useEffect(() => { if (tpl.data) setText(tpl.data.template); }, [tpl.data]);
   const save = useMutation({ mutationFn: () => api("/leads/pitch", "PUT", { template: text }), onSuccess: () => qc.invalidateQueries({ queryKey: ["pitch"] }) });
@@ -25,7 +27,8 @@ export default function Pitch() {
         </div>
         <ErrorNote error={save.error} />
       </Card>
-      <Card title={`Next to contact (${leads.data?.total ?? 0} new with no website, best first)`}>
+      <div className="flex items-center gap-2 text-sm"><span className="text-mist-500">Show leads from</span><SearchSelect value={search} onChange={setSearch} /></div>
+      <Card title={`Next to contact (${leads.data?.total ?? 0} new, verified no website, best first)`}>
         {leads.data?.items.map((l: J) => {
           const msg = pitchFor(text || tpl.data?.template || "", l);
           const wa = whatsapp(l.phone, msg);

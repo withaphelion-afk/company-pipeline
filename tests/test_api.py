@@ -413,8 +413,10 @@ def test_maps_leads_ingest_list_status_pitch(client):
         {"name": "Big Hospital", "rating": "4.0 stars 900 Reviews", "category_address": "Hospital · MG Road", "phone": "020 1234 5678", "has_website": "yes", "website": "https://big.example", "maps_url": "https://maps/2"},
         {"name": "  ", "category_address": ""},
     ]
+    rows[1]["website"] = "https://big.example"  # a real website listed on Maps
     r = client.post("/leads/ingest", json={"rows": rows, "query": "dentist in Pune"}).json()
     assert r == {"received": 3, "new": 2, "updated": 0}
+    _verified_none()
     assert client.post("/leads/ingest", json={"rows": rows[:1]}).json() == {"received": 1, "new": 0, "updated": 1}  # no duplicates
     only = client.get("/leads", params={"no_website": True}).json()
     assert only["total"] == 1 and only["items"][0]["name"] == "Smile Dental Clinic" and only["items"][0]["score"] >= 80
@@ -431,3 +433,71 @@ def test_maps_leads_ingest_list_status_pitch(client):
     assert "{name}" in client.get("/leads/pitch").json()["template"]
     assert client.put("/leads/pitch", json={"template": "Hi {name}"}).json() == {"template": "Hi {name}"}
     assert client.get("/companies", params={"source": "pipeline"}).json()["total"] == 0 or True
+
+
+def test_leads_filter_by_search(client):
+    row = lambda n, site: {"name": n, "category_address": "Skin clinic · Saket, Delhi", "phone": "011 2222 3333", "website": "https://x.example" if site == "yes" else ""}  # noqa: E731
+    client.post("/leads/ingest", json={"rows": [row("Glow Skin Clinic", "no"), row("Derma One", "yes")], "query": "Skin clinic in Delhi"})
+    client.post("/leads/ingest", json={"rows": [row("Glow Skin Clinic", "no"), row("Hair Studio", "no")], "query": "hair transplant in Delhi"})
+    _verified_none()
+    assert client.get("/leads", params={"search": "skin clinic in delhi"}).json()["total"] == 2
+    assert client.get("/leads", params={"search": "hair transplant in delhi", "no_website": True}).json()["total"] == 2
+    st = client.get("/leads/stats").json()["searches"]
+    assert st == [{"query": "hair transplant in delhi", "total": 2, "no_website": 2}, {"query": "skin clinic in delhi", "total": 2, "no_website": 1}]
+
+
+def test_leads_website_filter(client):
+    rows = [{"name": "A Clinic", "category_address": "Skin clinic · X"}, {"name": "B Clinic", "category_address": "Skin clinic · Y", "website": "https://b.example"}]
+    client.post("/leads/ingest", json={"rows": rows, "query": "skin clinic in delhi"})
+    _verified_none()
+    n = lambda site: client.get("/leads", params={"site": site}).json()["total"]  # noqa: E731
+    assert (n("none"), n("has"), n("any")) == (1, 1, 2)
+
+
+def test_search_queue_flow_and_ingest_token(client, monkeypatch):
+    from app.core.config import get_settings
+    r = client.post("/leads/queue", json={"keywords": ["skin clinic", "IVF clinic"], "areas": ["Saket, Delhi", "Dwarka, Delhi"]}).json()
+    assert r == {"added": 4, "total": 4}
+    assert client.post("/leads/queue", json={"keywords": ["Skin Clinic"], "areas": ["saket, delhi"]}).json()["added"] == 0  # no duplicates
+    assert "Saket" in client.get("/leads/queue").json()["starter"]["areas"]
+    item = client.post("/leads/queue/next").json()["item"]
+    assert item["query"] == "skin clinic in saket, delhi" and item["status"] == "running"
+    assert client.post("/leads/queue/next").json()["item"]["id"] != item["id"]  # a running search is not handed out twice
+    client.post(f"/leads/queue/{item['id']}/done", json={"found": 40, "new": 12})
+    done = [i for i in client.get("/leads/queue").json()["items"] if i["id"] == item["id"]][0]
+    assert (done["status"], done["found"], done["new"]) == ("done", 40, 12)
+    client.post(f"/leads/queue/{item['id']}/reset")
+    assert client.delete(f"/leads/queue/{item['id']}").status_code == 204
+    monkeypatch.setattr(get_settings(), "INGEST_TOKEN", "t0k")
+    assert client.post("/leads/queue/next").status_code == 401
+    assert client.post("/leads/ingest", json={"rows": []}).status_code == 401
+    assert client.post("/leads/queue/next", headers={"X-Ingest-Token": "t0k"}).status_code == 200
+    assert client.get("/leads/stats").status_code == 200  # reading stays open
+
+
+def test_website_status_in_ingest_and_filters(client):
+    rows = [
+        {"name": "Listed Clinic", "category_address": "Skin clinic · Saket", "website": "https://listedclinic.com/?utm=1", "detail_read": True},
+        {"name": "Insta Only Clinic", "category_address": "Skin clinic · Saket", "website": "https://instagram.com/insta", "detail_read": True},
+        {"name": "Not Read Clinic", "category_address": "Skin clinic · Saket"},
+    ]
+    client.post("/leads/ingest", json={"rows": rows, "query": "skin clinic in saket"})
+    by = {i["name"]: i for i in client.get("/leads", params={"site": "any"}).json()["items"]}
+    assert by["Listed Clinic"]["website_status"] == "has_site" and by["Listed Clinic"]["has_website"]
+    assert by["Insta Only Clinic"]["website_status"] == "pending" and not by["Insta Only Clinic"]["has_website"]  # Instagram is not a website
+    n = lambda site: client.get("/leads", params={"site": site}).json()["total"]  # noqa: E731
+    assert (n("none"), n("has"), n("unknown")) == (0, 1, 2)  # nothing is called "no website" until it has been strictly checked
+
+
+def _verified_none():
+    """Pretend the strict website check has run: pending leads without a site become 'none'."""
+    from sqlalchemy import select
+
+    from app.core.db import SessionLocal
+    with SessionLocal() as s:
+        for c in s.scalars(select(Company).where(Company.source == "maps")):
+            e = dict(c.extra or {})
+            if e.get("website_status") == "pending":
+                e.update(website_status="none", has_website=False)
+                c.extra = e
+        s.commit()

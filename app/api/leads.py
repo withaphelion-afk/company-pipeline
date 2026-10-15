@@ -7,11 +7,12 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.auth import review_auth
+from app.core.auth import ingest_auth, review_auth
 from app.core.db import get_session
 from app.models import Company, now
 from app.services.control import get_setting, set_setting
 from app.services.normalize import normalize_name
+from app.services.website_check import is_aggregator
 
 router = APIRouter(prefix="/leads", dependencies=[Depends(review_auth)])
 STATUSES = ["new", "contacted", "replied", "quoted", "won", "lost"]
@@ -32,6 +33,8 @@ class LeadRow(BaseModel):
     has_website: str = "no"
     website: str = ""
     maps_url: str = ""
+    links: list[str] = []  # external links found on the listing (used by the strict website check)
+    detail_read: bool = False  # True when the business's own detail panel was opened and read
 
 
 class IngestIn(BaseModel):
@@ -39,9 +42,15 @@ class IngestIn(BaseModel):
     query: str = ""
 
 
+def site_status(e: dict[str, Any]) -> str:
+    """has_site | probable_site | none | unknown | pending (old rows without a status are re-checked)."""
+    return e.get("website_status") or ("has_site" if e.get("has_website") else "pending")
+
+
 def lead_score(c: Company) -> int:
     e = c.extra or {}
-    score = 30 + (30 if not e.get("has_website") else 0) + (15 if e.get("phone") else 0) + (10 if HIGH_NEED.search(f"{c.industry or ''} {c.name}") else 0)
+    st = site_status(e)
+    score = 30 + (30 if st == "none" else 10 if st in ("unknown", "pending", "probable_site") else 0) + (15 if e.get("phone") else 0) + (10 if HIGH_NEED.search(f"{c.industry or ''} {c.name}") else 0)
     m = re.search(r"(\d[\d,]*)\s*reviews?", e.get("rating", ""), re.I)
     if m and int(m.group(1).replace(",", "")) >= 20:
         score += 10  # established business, more likely to pay
@@ -51,8 +60,9 @@ def lead_score(c: Company) -> int:
 def lead_out(c: Company) -> dict[str, Any]:
     e = c.extra or {}
     return {"id": c.id, "name": c.name, "category": c.industry, "address": e.get("address") or c.city, "phone": e.get("phone", ""), "rating": e.get("rating", ""),
-            "has_website": bool(e.get("has_website")), "website": c.website, "maps_url": e.get("maps_url", ""), "status": e.get("lead_status", "new"),
-            "notes": e.get("notes", ""), "query": e.get("query", ""), "score": lead_score(c), "found_at": c.created_at}
+            "has_website": site_status(e) in ("has_site", "probable_site"), "website_status": site_status(e),
+            "website_evidence": e.get("website_evidence", ""), "website": c.website, "maps_url": e.get("maps_url", ""), "status": e.get("lead_status", "new"),
+            "notes": e.get("notes", ""), "queries": e.get("queries") or ([e["query"].lower()] if e.get("query") else []), "score": lead_score(c), "found_at": c.created_at}
 
 
 def _leads(s: Session) -> list[Company]:
@@ -60,7 +70,7 @@ def _leads(s: Session) -> list[Company]:
 
 
 @router.post("/ingest")
-def ingest(b: IngestIn, s: Session = Depends(get_session)) -> dict[str, int]:
+def ingest(b: IngestIn, s: Session = Depends(get_session), _: None = Depends(ingest_auth)) -> dict[str, int]:
     """Called by the extension: the rows it read from Google Maps. Duplicates (same name and address) are updated, not repeated."""
     new = updated = 0
     for r in b.rows:
@@ -80,20 +90,32 @@ def ingest(b: IngestIn, s: Session = Depends(get_session)) -> dict[str, int]:
             updated += 1
         co.industry, co.city, co.fetched_at = (category or co.industry or "")[:200] or None, address or None, now()
         co.website = (r.website or "")[:500] or None
-        co.extra = {**(co.extra or {}), "kind": "local_business", "address": full_address, "phone": r.phone, "rating": r.rating, "maps_url": r.maps_url,
-                    "has_website": r.has_website.lower() == "yes", "query": b.query or (co.extra or {}).get("query", "")}
+        e0 = co.extra or {}
+        real_site = bool(r.website) and not is_aggregator(r.website)
+        old = e0.get("website_status")
+        status = "has_site" if real_site else ("pending" if old in (None, "pending", "unknown") else old)
+        co.extra = {**e0, "kind": "local_business", "address": full_address, "phone": r.phone, "rating": r.rating, "maps_url": r.maps_url,
+                    "maps_website": r.website, "links": r.links[:20], "detail_read": r.detail_read or bool(e0.get("detail_read")),
+                    "website_status": status, "has_website": status in ("has_site", "probable_site"),
+                    **({"website_evidence": "listed on Google Maps", "website_url": r.website} if real_site else {}),
+                    "queries": sorted(set((co.extra or {}).get("queries", [])) | ({b.query.strip().lower()} if b.query.strip() else set()))}
     s.commit()
     return {"received": len(b.rows), "new": new, "updated": updated}
 
 
 @router.get("")
-def list_leads(no_website: bool = False, status: str | None = None, q: str | None = None, page: int = 1, page_size: int = 100,
+def list_leads(no_website: bool = False, status: str | None = None, q: str | None = None, search: str | None = None, site: Literal["any", "none", "has", "probable", "unknown"] = "any", page: int = 1, page_size: int = 100,
                s: Session = Depends(get_session)) -> dict[str, Any]:
     items = [lead_out(c) for c in _leads(s)]
+    want = {"none": ("none",), "has": ("has_site",), "probable": ("probable_site",), "unknown": ("unknown", "pending")}
     if no_website:
-        items = [i for i in items if not i["has_website"]]
+        site = "none"
+    if site != "any":
+        items = [i for i in items if i["website_status"] in want[site]]
     if status:
         items = [i for i in items if i["status"] == status]
+    if search:
+        items = [i for i in items if search.lower() in i["queries"]]
     if q:
         items = [i for i in items if q.lower() in f"{i['name']} {i['category']} {i['address']}".lower()]
     items.sort(key=lambda i: -i["score"])
@@ -106,7 +128,15 @@ def stats(s: Session = Depends(get_session)) -> dict[str, Any]:
     by: dict[str, int] = {st: 0 for st in STATUSES}
     for i in items:
         by[i["status"]] = by.get(i["status"], 0) + 1
-    return {"total": len(items), "no_website": sum(1 for i in items if not i["has_website"]), "by_status": by, "recent": items[:15]}
+    searches: dict[str, dict[str, int]] = {}
+    for i in items:
+        for qy in i["queries"]:
+            row = searches.setdefault(qy, {"total": 0, "no_website": 0})
+            row["total"] += 1
+            row["no_website"] += 1 if i["website_status"] == "none" else 0
+    return {"total": len(items), "no_website": sum(1 for i in items if i["website_status"] == "none"),
+            "unverified": sum(1 for i in items if i["website_status"] in ("unknown", "pending")), "by_status": by, "recent": items[:15],
+            "searches": [{"query": k, **v} for k, v in sorted(searches.items())]}
 
 
 class LeadPatch(BaseModel):
@@ -143,3 +173,94 @@ def put_pitch(b: PitchIn, s: Session = Depends(get_session)) -> dict[str, str]:
     set_setting(s, "maps_pitch", b.template)
     return {"template": b.template}
 
+
+
+
+# --- search queue (what the crawler works through) --------------------------------------------------------------
+QUEUE_KEY = "maps_queue"
+HIGH_TICKET = ["skin clinic", "hair transplant clinic", "dental implant clinic", "IVF clinic", "physiotherapy clinic",
+               "interior designer", "wedding photographer", "event planner", "coaching classes"]
+DELHI_AREAS = ["Saket", "Greater Kailash", "Defence Colony", "Vasant Kunj", "Hauz Khas", "Connaught Place", "Lajpat Nagar", "Dwarka",
+               "Rohini", "Pitampura", "Janakpuri", "Karol Bagh", "Preet Vihar", "Vasant Vihar", "Safdarjung Enclave", "Punjabi Bagh"]
+STALE_MINUTES = 90
+
+
+class QueueAdd(BaseModel):
+    keywords: list[str]
+    areas: list[str]  # for example "Saket, Delhi"
+
+
+class QueueDone(BaseModel):
+    found: int = 0
+    new: int = 0
+    error: str | None = None
+
+
+def _queue(s: Session) -> list[dict[str, Any]]:
+    return list(get_setting(s, QUEUE_KEY, []) or [])
+
+
+@router.get("/queue")
+def get_queue(s: Session = Depends(get_session)) -> dict[str, Any]:
+    return {"items": _queue(s), "starter": {"keywords": HIGH_TICKET, "areas": DELHI_AREAS}}
+
+
+@router.post("/queue")
+def add_queue(b: QueueAdd, s: Session = Depends(get_session)) -> dict[str, int]:
+    q = _queue(s)
+    have = {i["query"] for i in q}
+    nid = max((i["id"] for i in q), default=0)
+    added = 0
+    for kw in (k.strip() for k in b.keywords if k.strip()):
+        for area in (a.strip() for a in b.areas if a.strip()):
+            query = f"{kw} in {area}"
+            if query.lower() in have:
+                continue
+            nid += 1
+            q.append({"id": nid, "keyword": kw, "area": area, "query": query.lower(), "status": "pending", "found": 0, "new": 0,
+                      "last_run_at": None, "error": None})
+            have.add(query.lower())
+            added += 1
+    set_setting(s, QUEUE_KEY, q)
+    return {"added": added, "total": len(q)}
+
+
+@router.delete("/queue/{qid}", status_code=204)
+def delete_queue(qid: int, s: Session = Depends(get_session)) -> None:
+    set_setting(s, QUEUE_KEY, [i for i in _queue(s) if i["id"] != qid])
+
+
+@router.post("/queue/{qid}/reset")
+def reset_queue(qid: int, s: Session = Depends(get_session)) -> dict[str, Any]:
+    q = _queue(s)
+    for i in q:
+        if i["id"] == qid:
+            i.update(status="pending", error=None)
+    set_setting(s, QUEUE_KEY, q)
+    return {"id": qid}
+
+
+@router.post("/queue/next")
+def claim_next(s: Session = Depends(get_session), _: None = Depends(ingest_auth)) -> dict[str, Any]:
+    """The crawler asks for its next search. A search stuck 'running' for over 90 minutes (a crashed run) is handed out again."""
+    from datetime import UTC, datetime, timedelta
+
+    q = _queue(s)
+    cutoff = datetime.now(UTC) - timedelta(minutes=STALE_MINUTES)
+    for i in q:
+        stale = i["status"] == "running" and i.get("last_run_at") and datetime.fromisoformat(i["last_run_at"]) < cutoff
+        if i["status"] == "pending" or stale:
+            i.update(status="running", last_run_at=datetime.now(UTC).isoformat(), error=None)
+            set_setting(s, QUEUE_KEY, q)
+            return {"item": i}
+    return {"item": None}
+
+
+@router.post("/queue/{qid}/done")
+def finish_queue(qid: int, b: QueueDone, s: Session = Depends(get_session), _: None = Depends(ingest_auth)) -> dict[str, Any]:
+    q = _queue(s)
+    for i in q:
+        if i["id"] == qid:
+            i.update(status="error" if b.error else "done", found=b.found, new=b.new, error=b.error)
+    set_setting(s, QUEUE_KEY, q)
+    return {"id": qid}

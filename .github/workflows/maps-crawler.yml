@@ -1,0 +1,31 @@
+name: maps-crawler
+# Works through the Maps Leads search queue and posts leads to the app. Needs the repo secrets APP_URL and INGEST_TOKEN.
+# The crawler stops (and the run is marked failed) if Google shows a CAPTCHA; it never tries to get around one.
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      max_businesses:
+        description: "Most businesses to read in this run"
+        default: "120"
+concurrency:
+  group: maps-crawler
+  cancel-in-progress: false
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r tools/maps_crawler/requirements.txt && python -m playwright install --with-deps chromium
+      - name: Crawl
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+          MAX_BUSINESSES: ${{ inputs.max_businesses || '120' }}
+          MAX_MINUTES: "100"
+        run: python tools/maps_crawler/crawl.py

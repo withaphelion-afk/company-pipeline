@@ -14,3 +14,8 @@ export function pitchFor(template: string, l: J): string {
   const area = (l.address || "").split(",")[0];
   return template.replaceAll("{name}", l.name).replaceAll("{category}", (l.category || "business").toLowerCase()).replaceAll("{area}", area);
 }
+
+export const SITE_LABEL: Record<string, [string, string]> = {
+  none: ["no website", "green"], has_site: ["has site", "slate"], probable_site: ["probable site", "amber"],
+  unknown: ["not checked", "slate"], pending: ["not checked", "slate"],
+};

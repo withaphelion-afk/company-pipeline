@@ -16,6 +16,13 @@ def review_auth(request: Request) -> None:
         raise HTTPException(401, "Missing or invalid bearer token")
 
 
+def ingest_auth(request: Request) -> None:
+    """Only the crawler may add leads and claim searches when INGEST_TOKEN is set."""
+    token = get_settings().INGEST_TOKEN
+    if token and not secrets.compare_digest(request.headers.get("x-ingest-token", ""), token):
+        raise HTTPException(401, "Missing or invalid ingest token")
+
+
 def control_auth(request: Request) -> None:
     if not get_settings().AUTH_ENABLED:
         return

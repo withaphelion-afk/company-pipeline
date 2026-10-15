@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Maps crawler (Playwright) + GitHub Actions schedule; search queue; strict website check with statuses and evidence; INGEST_TOKEN.
+- Leads: search and website-status filters.
 - Sidebar layout with module tabs and an app switcher; Aphelion design system.
 - Maps Leads app (Find, Leads, Pitch, Tracker) and a Chrome extension that sends Google Maps results to the app.
 
