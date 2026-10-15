@@ -7,7 +7,7 @@ import { SITE_LABEL, STATUSES, pitchFor, whatsapp } from "./util";
 
 export default function Leads() {
   const qc = useQueryClient();
-  const [site, setSite] = useState("none");
+  const [site, setSite] = useState("any");  // show everything by default; the filter narrows it
   const [status, setStatus] = useState("");
   const [text, setText] = useState("");
   const [search, setSearch] = useState("");
@@ -27,7 +27,7 @@ export default function Leads() {
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
         <SearchSelect value={search} onChange={setSearch} />
         <select value={site} onChange={(e) => setSite(e.target.value)}>
-          <option value="none">No website (verified)</option><option value="probable">Probable site</option><option value="unknown">Not checked yet</option><option value="has">Has website</option><option value="any">Any website status</option>
+          <option value="any">All businesses</option><option value="none">Without a website (verified)</option><option value="has">With a website</option><option value="probable">Probable website</option><option value="unknown">Not checked yet</option>
         </select>
         <select className="border px-2 py-1" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Any status</option>{STATUSES.map((s) => <option key={s}>{s}</option>)}

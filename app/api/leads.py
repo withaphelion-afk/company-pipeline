@@ -1,5 +1,6 @@
 """Maps Leads: local businesses (found by the extension on Google Maps) that may need a website. Stored as companies."""
 import re
+import threading
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import ingest_auth, review_auth
 from app.core.db import get_session
-from app.models import Company, now
+from app.models import AppSetting, Company, now
 from app.services.control import get_setting, set_setting
 from app.services.normalize import normalize_name
 from app.services.website_check import is_aggregator
@@ -240,19 +241,32 @@ def reset_queue(qid: int, s: Session = Depends(get_session)) -> dict[str, Any]:
     return {"id": qid}
 
 
+_claim_lock = threading.Lock()  # one claim at a time inside this process; the row lock below covers other processes
+
+
 @router.post("/queue/next")
 def claim_next(s: Session = Depends(get_session), _: None = Depends(ingest_auth)) -> dict[str, Any]:
     """The crawler asks for its next search. A search stuck 'running' for over 90 minutes (a crashed run) is handed out again."""
+    with _claim_lock:
+        return _claim(s)
+
+
+def _claim(s: Session) -> dict[str, Any]:
     from datetime import UTC, datetime, timedelta
 
-    q = _queue(s)
+    row = s.scalar(select(AppSetting).where(AppSetting.key == QUEUE_KEY).with_for_update())  # lock: parallel crawlers must never get the same search
+    if row is None:
+        return {"item": None}
+    q = [dict(i) for i in (row.value or [])]
     cutoff = datetime.now(UTC) - timedelta(minutes=STALE_MINUTES)
     for i in q:
         stale = i["status"] == "running" and i.get("last_run_at") and datetime.fromisoformat(i["last_run_at"]) < cutoff
         if i["status"] == "pending" or stale:
             i.update(status="running", last_run_at=datetime.now(UTC).isoformat(), error=None)
-            set_setting(s, QUEUE_KEY, q)
+            row.value = q
+            s.commit()
             return {"item": i}
+    s.rollback()
     return {"item": None}
 
 

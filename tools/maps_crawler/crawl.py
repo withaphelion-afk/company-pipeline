@@ -238,7 +238,7 @@ def main() -> int:
                 break
             pause(4, 9)
         browser.close()
-    if api and total:
+    if api and total and not os.getenv("NO_VERIFY"):
         api.verify()
         print("asked the app to run the strict website check")
     print(f"finished: {total} businesses read")

@@ -501,3 +501,12 @@ def _verified_none():
                 e.update(website_status="none", has_website=False)
                 c.extra = e
         s.commit()
+
+
+def test_parallel_claims_never_hand_out_the_same_search(client):
+    from concurrent.futures import ThreadPoolExecutor
+    client.post("/leads/queue", json={"keywords": ["a", "b", "c", "d", "e", "f"], "areas": ["x"]})
+    with ThreadPoolExecutor(6) as ex:
+        got = [r.json()["item"] for r in ex.map(lambda _: client.post("/leads/queue/next"), range(6))]
+    ids = [i["id"] for i in got if i]
+    assert len(ids) == len(set(ids))  # every claim got a different search (SQLite serialises; Postgres uses the row lock)

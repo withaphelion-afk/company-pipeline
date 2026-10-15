@@ -1,31 +1,61 @@
 name: maps-crawler
 # Works through the Maps Leads search queue and posts leads to the app. Needs the repo secrets APP_URL and INGEST_TOKEN.
-# The crawler stops (and the run is marked failed) if Google shows a CAPTCHA; it never tries to get around one.
+# Parallel: several crawler jobs run at once and each claims its own searches (the app hands every search out exactly once).
+# The crawler stops (and that job fails) if Google shows a CAPTCHA; it never tries to get around one.
 on:
   schedule:
     - cron: "17 */6 * * *"
   workflow_dispatch:
     inputs:
+      jobs:
+        description: "Crawler jobs to run at the same time (1-10; more jobs means more chance Google challenges them)"
+        default: "3"
       max_businesses:
-        description: "Most businesses to read in this run"
-        default: "120"
+        description: "Most businesses each job reads"
+        default: "150"
 concurrency:
   group: maps-crawler
   cancel-in-progress: false
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.s.outputs.shards }}
+    steps:
+      - id: s
+        run: |
+          n=${{ inputs.jobs || '3' }}
+          if [ "$n" -lt 1 ]; then n=1; fi
+          if [ "$n" -gt 10 ]; then n=10; fi
+          echo "shards=$(python3 -c "import json;print(json.dumps(list(range(1, $n + 1))))")" >> "$GITHUB_OUTPUT"
   crawl:
+    needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r tools/maps_crawler/requirements.txt && python -m playwright install --with-deps chromium
-      - name: Crawl
+      - name: Crawl (job ${{ matrix.shard }})
         env:
           APP_URL: ${{ secrets.APP_URL }}
           INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
-          MAX_BUSINESSES: ${{ inputs.max_businesses || '120' }}
+          MAX_BUSINESSES: ${{ inputs.max_businesses || '150' }}
           MAX_MINUTES: "100"
+          NO_VERIFY: "1"
         run: python tools/maps_crawler/crawl.py
+  verify:
+    needs: crawl
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run the strict website check once, after all crawler jobs
+        run: |
+          curl -fsS -X POST "${{ secrets.APP_URL }}/control/jobs" -H "Content-Type: application/json"             -d '{"stage":"verify_websites","dry_run":false}'
