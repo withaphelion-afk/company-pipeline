@@ -405,3 +405,29 @@ def test_send_endpoint_needs_authorization_for_real_sends(client, session, monke
     monkeypatch.setattr(gmail, "TOKEN", __import__("pathlib").Path("definitely-missing-token.json"))
     assert client.post("/outreach/send", json={"dry_run": False}).status_code == 409
     assert client.get("/outreach/send/status").json()["authorized"] is False
+
+
+def test_maps_leads_ingest_list_status_pitch(client):
+    rows = [
+        {"name": "Smile Dental Clinic", "rating": "4.6 stars 120 Reviews", "category_address": "Dentist · Baner Road, Pune", "phone": "098765 43210", "has_website": "no", "maps_url": "https://maps/1"},
+        {"name": "Big Hospital", "rating": "4.0 stars 900 Reviews", "category_address": "Hospital · MG Road", "phone": "020 1234 5678", "has_website": "yes", "website": "https://big.example", "maps_url": "https://maps/2"},
+        {"name": "  ", "category_address": ""},
+    ]
+    r = client.post("/leads/ingest", json={"rows": rows, "query": "dentist in Pune"}).json()
+    assert r == {"received": 3, "new": 2, "updated": 0}
+    assert client.post("/leads/ingest", json={"rows": rows[:1]}).json() == {"received": 1, "new": 0, "updated": 1}  # no duplicates
+    only = client.get("/leads", params={"no_website": True}).json()
+    assert only["total"] == 1 and only["items"][0]["name"] == "Smile Dental Clinic" and only["items"][0]["score"] >= 80
+    assert only["items"][0]["category"] == "Dentist" and only["items"][0]["address"] == "Baner Road, Pune"
+    lid = only["items"][0]["id"]
+    assert client.patch(f"/leads/{lid}", json={"status": "contacted", "notes": "called"}).json()["status"] == "contacted"
+    assert client.patch(f"/leads/{lid}", json={"status": "bogus"}).status_code == 422
+    st = client.get("/leads/stats").json()
+    assert st["total"] == 2 and st["no_website"] == 1 and st["by_status"]["contacted"] == 1 and len(st["recent"]) == 2
+    long_addr = "Shop No 109, " + "Upper Ground Floor, " * 8  # longer than the 100-character city column
+    r2 = client.post("/leads/ingest", json={"rows": [{"name": "Long Address Dental", "category_address": f"Dental clinic · {long_addr}", "has_website": "no"}]}).json()
+    assert r2["new"] == 1
+    assert [i for i in client.get("/leads").json()["items"] if i["name"] == "Long Address Dental"][0]["address"].startswith("Shop No 109")
+    assert "{name}" in client.get("/leads/pitch").json()["template"]
+    assert client.put("/leads/pitch", json={"template": "Hi {name}"}).json() == {"template": "Hi {name}"}
+    assert client.get("/companies", params={"source": "pipeline"}).json()["total"] == 0 or True

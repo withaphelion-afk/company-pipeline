@@ -25,7 +25,7 @@ export default function Safety() {
   return (
     <div className="space-y-4">
       <ErrorNote error={q.error ?? kill.error ?? set.error} />
-      <Card className={s?.kill_switch ? "border-red-400 bg-red-50" : ""}>
+      <Card className={s?.kill_switch ? "border-danger/50 bg-ink-800" : ""}>
         <div className="flex items-center gap-4">
           <Button tone={s?.kill_switch ? "default" : "danger"} className="px-8 py-4 text-lg font-bold" disabled={!s || kill.isPending} onClick={() => kill.mutate(!s?.kill_switch)}>
             {s?.kill_switch ? "RELEASE KILL SWITCH" : "KILL SWITCH"}
@@ -36,9 +36,9 @@ export default function Safety() {
       </Card>
       <Card title="Defaults">
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!s?.dry_run_default} onChange={(e) => set.mutate({ dry_run_default: e.target.checked })} /> Dry run by default</label>
-        <p className="mt-2 text-sm">Daily send cap: <b>{s?.daily_send_cap}</b> <span className="text-xs text-slate-400">(display only; sending is not implemented)</span></p>
+        <p className="mt-2 text-sm">Daily send cap: <b>{s?.daily_send_cap}</b> <span className="text-xs text-mist-500">(display only; sending is not implemented)</span></p>
         <p className="mt-1 text-sm">SMTP probing: <Badge tone={s?.smtp_probe_enabled ? "amber" : "green"}>{s?.smtp_probe_enabled ? "enabled via env" : "disabled"}</Badge></p>
-        <p className="mt-1 text-sm">Suppression entries: <b>{s?.suppression_count}</b> · <Link className="text-blue-600 underline" to="/review/suppression">manage</Link></p>
+        <p className="mt-1 text-sm">Suppression entries: <b>{s?.suppression_count}</b> · <Link className="text-violet-300 underline" to="/review/suppression">manage</Link></p>
       </Card>
       <Card title="Enforced compliance rules (read-only)"><ul className="list-disc space-y-1 pl-5 text-sm">{RULES.map((r) => <li key={r}>{r}</li>)}</ul></Card>
     </div>

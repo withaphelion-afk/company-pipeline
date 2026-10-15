@@ -1,1 +1,154 @@
+/* Reel Automation — Violet / White / Black
+ *
+ * Structure, type scale and surface treatment read off render.com; the accent
+ * is this project's own violet (frontend/public/favicon.svg, #863BFF → #7E14FF,
+ * which lands within a few percent of Render's #8A05FF).
+ *
+ * The rules that make it read as Render:
+ *   - Zero border radius. Nothing is rounded except dots and avatars.
+ *   - Flat #0D0D0D surfaces separated by 1px #272727 hairlines. No glass,
+ *     no blur, no drop shadows.
+ *   - The primary button is white with black text. Violet is an accent, not
+ *     a call to action.
+ *   - Headings are LIGHT (300), large and tightly tracked. Weight carries no
+ *     emphasis at display sizes; size and space do.
+ *
+ * Typography substitutes Render's licensed faces with the closest free
+ * equivalents at matching size, weight and tracking:
+ *   Roobert           → General Sans (Fontshare)
+ *   PP Neue Montreal  → Switzer      (Fontshare)
+ */
 @import "tailwindcss";
+@import url('https://api.fontshare.com/v2/css?f[]=general-sans@300,400,500,600&f[]=switzer@400,500,600&display=swap');
+
+@theme {
+  --font-display: "General Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans:    "Switzer", ui-sans-serif, system-ui, sans-serif;
+
+  /* Black — the page, its surfaces, and the hairlines between them. */
+  --color-ink-950:    #0A0A0A;
+  --color-ink-900:    #0D0D0D;
+  --color-ink-800:    #141414;
+  --color-line:       #272727;
+  --color-line-loud:  #E3E3E3;
+
+  /* White — the text ladder. Three steps, no more. */
+  --color-mist-50:    #FFFFFF;
+  --color-mist-200:   #E3E3E3;
+  --color-mist-500:   #6B6B6B;
+
+  /* Violet — accent only. */
+  --color-violet-200: #D1B8FF;
+  --color-violet-300: #C29EFF;
+  --color-violet-500: #8A05FF;
+  --color-violet-600: #7E14FF;
+  --color-violet-900: #48008C;
+
+  /* The one hue outside violet/white/black. A failed post is the whole
+     reason the Queue screen exists, so it keeps a colour of its own. */
+  --color-danger:      #FF5C5C;
+  --color-danger-soft: #FFB4B4;
+
+  /* Connection state on the avatar ring. Green/red is the one convention a
+     user never has to be taught, so it earns its place outside the palette —
+     but it is never the only carrier: the menu spells the state out in words
+     and the avatar button has a screen-reader label. */
+  --color-online:      #35D07F;
+
+  --animate-rise:    rise .7s cubic-bezier(.22,1,.36,1) both;
+  --animate-rise-in: rise-in .5s cubic-bezier(.22,1,.36,1) both;
+  --animate-fade-in: fade-in .8s ease both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+  --animate-blink:   blink 2s ease-in-out infinite;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shimmer {
+  from { background-position: -260px 0; }
+  to   { background-position: 260px 0; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .25; }
+}
+
+/* Surfaces — flat fills with a hairline. Square, always. */
+@utility surface {
+  background: var(--color-ink-900);
+  border: 1px solid var(--color-line);
+}
+
+/* Inputs, hover states, anything sitting on top of a surface. */
+@utility surface-raised {
+  background: var(--color-ink-800);
+  border: 1px solid var(--color-line);
+}
+
+/* The one card per view that should pull focus. */
+@utility surface-loud {
+  background: var(--color-ink-900);
+  border: 1px solid var(--color-line-loud);
+}
+
+html, body, #root { height: 100%; }
+
+/* Dark native widgets: the datetime picker, <select> popups and scrollbars
+   all default to a light chrome that reads as a bug here. */
+html { color-scheme: dark; }
+
+body {
+  margin: 0;
+  background: var(--color-ink-950);
+  color: var(--color-mist-50);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  letter-spacing: .01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* @layer base, not a bare rule: Tailwind v4 puts every unlayered style ahead
+ * of ALL of its own layers (base, utilities) in the cascade, regardless of
+ * source order - so a bare `a { color: ... }` here would beat every text-*
+ * utility ever applied to a link, including on buttons rendered as <a> (the
+ * white-on-white "Open LinkedIn developer portal" link in Setup.tsx was
+ * exactly this: BTN_PRIMARY's `text-ink-950` never had a chance against it).
+ * Base layer is the right place for a reset anyway - it's meant to be the
+ * thing utilities override. */
+@layer base {
+  a { color: var(--color-mist-50); text-decoration: none; }
+  a:hover { color: var(--color-violet-300); }
+}
+
+::selection {
+  background: var(--color-violet-900);
+  color: var(--color-mist-50);
+}
+
+:focus-visible {
+  outline: 1px solid var(--color-violet-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

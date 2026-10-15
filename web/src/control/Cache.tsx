@@ -32,19 +32,19 @@ export default function Cache() {
       </Card>
       <Card title="Clear cache">
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <select className="rounded border px-2 py-1" value={source} onChange={(e) => { setSource(e.target.value); setConfirming(false); }}>
+          <select className="border px-2 py-1" value={source} onChange={(e) => { setSource(e.target.value); setConfirming(false); }}>
             <option value="">All sources</option>{q.data?.map((r) => <option key={r.source}>{r.source}</option>)}
           </select>
-          <label>older than <input className="w-16 rounded border px-2 py-1" type="number" min={0} value={days} onChange={(e) => { setDays(e.target.value); setConfirming(false); }} /> days</label>
+          <label>older than <input className="w-16 border px-2 py-1" type="number" min={0} value={days} onChange={(e) => { setDays(e.target.value); setConfirming(false); }} /> days</label>
           {!confirming ? <Button onClick={() => setConfirming(true)}>Clear…</Button> : (
             <>
-              <span className="text-red-700">Delete {source || "all"} cache older than {days || 0} days?</span>
+              <span className="text-danger">Delete {source || "all"} cache older than {days || 0} days?</span>
               <Button tone="danger" onClick={() => m.mutate()} disabled={m.isPending}>Yes, delete</Button><Button onClick={() => setConfirming(false)}>No</Button>
             </>
           )}
         </div>
         <ErrorNote error={m.error} />
-        {m.data && <p className="mt-2 text-sm text-green-700">Removed {m.data.removed_files} files.</p>}
+        {m.data && <p className="mt-2 text-sm text-online">Removed {m.data.removed_files} files.</p>}
       </Card>
     </div>
   );

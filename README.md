@@ -16,6 +16,10 @@
 6. **rank**: scores every person 0-100 with an intent (`hire`, `invest`, `advise`) and a one-line reason.
 7. **draft**: writes a short email per person from one of three templates (or Ollama), using only `profile.yaml` facts and stored signals.
 
+### Two apps, one sidebar layout
+
+The UI has a sidebar with five modules (Run, Opportunities, Outreach, Automation, Settings & Safety), tabs inside each, and an **Apps** switcher at the top right. The second app, **Maps Leads**, finds local businesses with no website: the Chrome extension in `tools/page-to-csv` reads a Google Maps results list you have open and posts it straight to the app (**Find** live feed, **Leads** with score, **Pitch** with WhatsApp links, **Tracker**). Use it only where you have the right to collect that data (Google's terms restrict scraping Maps). The theme is Aphelion's design system (`web/src/index.css` and `design.ts` are copied verbatim).
+
 ### Search & run (the main page)
 
 Set role keywords (default `frontend, react, ui engineer`), *Remote jobs only*, and your goals. Only jobs whose title matches a keyword (and is remote, if ticked) become hiring signals; a matching job adds +30 to a contact's score. **Enable all recommended free sources** turns on every no-config source; **Run everything** queues all stages in order. Repeat it to keep growing the list. The **Remote jobs** page lists every matched job with its apply link and best contact.

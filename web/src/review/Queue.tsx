@@ -19,16 +19,16 @@ function DraftCard({ d }: { d: J }) {
   return (
     <Card className="space-y-2">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <strong>{d.person.full_name}</strong><span className="text-slate-500">{d.person.title}</span>
-        <span>@ {d.company.name}</span><span className="text-slate-500">&lt;{d.to ?? "no email"}&gt;</span>
+        <strong>{d.person.full_name}</strong><span className="text-mist-500">{d.person.title}</span>
+        <span>@ {d.company.name}</span><span className="text-mist-500">&lt;{d.to ?? "no email"}&gt;</span>
         {d.to && (d.to_status === "verified" ? <Badge tone="green">verified</Badge> : <Badge tone="amber">{d.to_confidence >= 80 ? "likely" : "guess, may bounce"}</Badge>)}
         {d.intent && <Badge tone="blue">{d.intent} · score {d.score}</Badge>}
         <Badge>{d.llm_provider}</Badge>
       </div>
       <div className="flex flex-wrap gap-1 text-xs">
-        {d.signals_used.map((s: J, i: number) => <span key={i} title={s.url ?? ""} className="rounded bg-blue-50 px-2 py-0.5"><b>{s.type}</b>: {s.value}</span>)}
+        {d.signals_used.map((s: J, i: number) => <span key={i} title={s.url ?? ""} className="bg-ink-800 px-2 py-0.5"><b>{s.type}</b>: {s.value}</span>)}
       </div>
-      {d.kind !== "initial" && <div className="text-xs text-slate-500"><Badge tone="blue">{d.kind === "final" ? "last note" : "follow-up"}</Badge> due {d.due_at ? new Date(d.due_at).toLocaleDateString() : "now"}</div>}
+      {d.kind !== "initial" && <div className="text-xs text-mist-500"><Badge tone="blue">{d.kind === "final" ? "last note" : "follow-up"}</Badge> due {d.due_at ? new Date(d.due_at).toLocaleDateString() : "now"}</div>}
       {d.status === "sent" && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <Badge tone={d.outreach === "replied" ? "green" : d.outreach === "declined" ? "red" : "slate"}>{d.outreach}</Badge>
@@ -37,8 +37,8 @@ function DraftCard({ d }: { d: J }) {
       )}
       {edit ? (
         <>
-          <input className="w-full rounded border px-2 py-1 text-sm" value={subject} onChange={(e) => setSubject(e.target.value)} />
-          <textarea className="h-48 w-full rounded border p-2 text-sm" value={body} onChange={(e) => setBody(e.target.value)} />
+          <input className="w-full border px-2 py-1 text-sm" value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <textarea className="h-48 w-full border p-2 text-sm" value={body} onChange={(e) => setBody(e.target.value)} />
           <div className="flex gap-2"><Button tone="primary" onClick={() => m.mutate({ subject, body })}>Save</Button><Button onClick={() => setEdit(false)}>Cancel</Button></div>
         </>
       ) : (
@@ -47,10 +47,10 @@ function DraftCard({ d }: { d: J }) {
           <pre className="whitespace-pre-wrap font-sans text-sm">{d.body}</pre>
           {d.status === "approved" && (
             <div className="flex flex-wrap items-center gap-2">
-              <a className="rounded border border-blue-600 bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700" href={gmail(d)} target="_blank" rel="noreferrer">Open in Gmail</a>
+              <a className="border border-mist-50 bg-mist-50 px-3 py-1 text-sm text-ink-950 hover:bg-mist-200" href={gmail(d)} target="_blank" rel="noreferrer">Open in Gmail</a>
               <Button onClick={() => navigator.clipboard?.writeText(`Subject: ${d.subject}\n\n${d.body}`)}>Copy</Button>
               <Button onClick={() => m.mutate({ action: "sent" })}>I sent it</Button>
-              <span className="text-xs text-slate-400">Gmail opens pre-filled; you press Send yourself.</span>
+              <span className="text-xs text-mist-500">Gmail opens pre-filled; you press Send yourself.</span>
             </div>
           )}
           {d.status === "pending" && <div className="flex gap-2">
@@ -58,7 +58,7 @@ function DraftCard({ d }: { d: J }) {
             <Button onClick={() => setEdit(true)}>Edit</Button>
             <Button tone="danger" onClick={() => m.mutate({ action: "reject" })}>Reject</Button>
             <Button onClick={() => m.mutate({ action: "skip" })}>Skip</Button>
-            <span className="self-center text-xs text-slate-400">Approve only marks the draft; nothing is sent.</span>
+            <span className="self-center text-xs text-mist-500">Approve only marks the draft; nothing is sent.</span>
           </div>}
         </>
       )}
@@ -73,10 +73,10 @@ export default function Queue() {
   return (
     <div className="space-y-3">
       <div className="flex gap-1">{[["pending", "To review"], ["scheduled", "Scheduled follow-ups"], ["sent", "Sent"]].map(([k, l]) => (
-        <button key={k} onClick={() => setTab(k)} className={`rounded px-3 py-1 text-sm ${tab === k ? "bg-slate-900 text-white" : "hover:bg-slate-200"}`}>{l}</button>))}</div>
+        <button key={k} onClick={() => setTab(k)} className={`px-3 py-1 text-sm ${tab === k ? "bg-mist-50 text-ink-950" : "hover:bg-ink-800"}`}>{l}</button>))}</div>
       <ErrorNote error={q.error} />
-      <p className="text-xs text-slate-500">Approved drafts go to <Link className="text-blue-600 underline" to="/review/send">Send today</Link>: one Gmail window per person (no CC or BCC), 10 to 15 a day, published addresses first.</p>
-      {q.data?.length === 0 && <p className="text-sm text-slate-500">Nothing here yet.</p>}
+      <p className="text-xs text-mist-500">Approved drafts go to <Link className="text-violet-300 underline" to="/review/send">Send today</Link>: one Gmail window per person (no CC or BCC), 10 to 15 a day, published addresses first.</p>
+      {q.data?.length === 0 && <p className="text-sm text-mist-500">Nothing here yet.</p>}
       {q.data?.map((d) => <DraftCard key={d.id} d={d} />)}
     </div>
   );

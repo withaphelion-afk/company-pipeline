@@ -21,16 +21,16 @@ function RunDialog({ stage, onClose }: { stage: string; onClose: () => void }) {
     <Modal title={`Run ${stage}`} onClose={onClose}>
       <dl className="space-y-3 text-sm">
         <label className="block">Source
-          <select className="mt-1 block w-full rounded border px-2 py-1" value={source} onChange={(e) => setSource(e.target.value)}>
+          <select className="mt-1 block w-full border px-2 py-1" value={source} onChange={(e) => setSource(e.target.value)}>
             <option value="">All enabled sources</option>
             {sources.data?.filter((s) => !s.is_stub).map((s) => <option key={s.name}>{s.name}</option>)}
           </select>
         </label>
         <label className="block">Limit
-          <input className="mt-1 block w-full rounded border px-2 py-1" type="number" min={1} placeholder="no limit" value={limit} onChange={(e) => setLimit(e.target.value)} />
+          <input className="mt-1 block w-full border px-2 py-1" type="number" min={1} placeholder="no limit" value={limit} onChange={(e) => setLimit(e.target.value)} />
         </label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={dryRun} onChange={(e) => setDry(e.target.checked)} /> Dry run (no database writes)</label>
-        <p className="rounded bg-slate-100 p-2 text-xs">Will queue <b>{stage}</b> · source <b>{source || "all enabled"}</b> · limit <b>{limit || "none"}</b> · <b>{dryRun ? "dry run" : "LIVE WRITES"}</b></p>
+        <p className="bg-ink-800 p-2 text-xs">Will queue <b>{stage}</b> · source <b>{source || "all enabled"}</b> · limit <b>{limit || "none"}</b> · <b>{dryRun ? "dry run" : "LIVE WRITES"}</b></p>
       </dl>
       <ErrorNote error={m.error} />
       <div className="mt-4 flex justify-end gap-2"><Button onClick={onClose}>Cancel</Button><Button tone="primary" onClick={() => m.mutate()} disabled={m.isPending}>Queue job</Button></div>
@@ -42,7 +42,7 @@ export default function Dashboard() {
   const [stage, setStage] = useState<string | null>(null);
   const q = useQuery({ queryKey: ["status"], queryFn: () => api<J>("/control/status"), refetchInterval: 3000 });
   const s = q.data;
-  const card = (label: string, value: React.ReactNode) => <Card><div className="text-xs uppercase text-slate-500">{label}</div><div className="text-2xl font-semibold">{value}</div></Card>;
+  const card = (label: string, value: React.ReactNode) => <Card><div className="text-xs uppercase text-mist-500">{label}</div><div className="font-display text-3xl font-light">{value}</div></Card>;
   return (
     <div className="space-y-4">
       <ErrorNote error={q.error} />
@@ -52,10 +52,10 @@ export default function Dashboard() {
         {card("Running", s?.running ?? "—")}
         {card("Kill switch", s ? (s.kill_switch ? <Badge tone="red">ON</Badge> : <Badge tone="green">off</Badge>) : "—")}
       </div>
-      {s?.workers_online === 0 && <p className="rounded bg-amber-50 p-2 text-sm text-amber-800">No workers online: jobs stay queued until you run <code>make run-worker</code>.</p>}
+      {s?.workers_online === 0 && <p className="bg-ink-800 p-2 text-sm text-violet-200">No workers online: jobs stay queued until you run <code>make run-worker</code>.</p>}
       <Card title="Stages">
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-xs uppercase text-slate-500"><th>Stage</th><th>Last run</th><th>Status</th><th /></tr></thead>
+          <thead><tr className="text-left text-xs uppercase text-mist-500"><th>Stage</th><th>Last run</th><th>Status</th><th /></tr></thead>
           <tbody>
             {s?.stages.map((st: string) => {
               const j = s.last_runs[st];

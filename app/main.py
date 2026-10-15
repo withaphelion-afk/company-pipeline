@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import control, review
+from app.api import control, leads, review
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.jobs import threaded
@@ -22,6 +22,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Company & Contact Discovery Pipeline", version="0.3.0", lifespan=lifespan)
 app.include_router(review.router)
 app.include_router(control.router)
+app.include_router(leads.router)
 
 
 @app.get("/health")

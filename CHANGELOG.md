@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+- Sidebar layout with module tabs and an app switcher; Aphelion design system.
+- Maps Leads app (Find, Leads, Pitch, Tracker) and a Chrome extension that sends Google Maps results to the app.
+
 ## 0.3.0
 - Gmail API sender (local): dry-run preview, one email per person, daily allowance, important flag, stops at first error; `python -m pipeline gmail-auth`.
 - Featured projects (Orbit and Dentiq with live links) in every email; opt-out line removed from templates.

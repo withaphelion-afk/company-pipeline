@@ -46,22 +46,22 @@ export default function Send() {
           {opened.length > 0 && <Button tone="danger" onClick={() => sent.mutate(opened)}>I sent the {opened.length} I opened</Button>}
         </div>
         <div className="mt-2 flex items-center gap-2 text-sm">Send from
-          <input className="w-64 rounded border px-2 py-1" placeholder="you@gmail.com" value={sendFrom} onChange={(e) => setFrom(e.target.value)} />
+          <input className="w-64 border px-2 py-1" placeholder="you@gmail.com" value={sendFrom} onChange={(e) => setFrom(e.target.value)} />
           <Button onClick={() => saveFrom.mutate()} disabled={saveFrom.isPending}>Save</Button>
-          <span className="text-xs text-slate-400">Gmail opens signed in as this account (it must be signed in in this browser).</span>
+          <span className="text-xs text-mist-500">Gmail opens signed in as this account (it must be signed in in this browser).</span>
         </div>
-        <p className="mt-2 text-xs text-slate-500">Order: published addresses first, then follow-ups, then best score. Every person gets their own email (no CC or BCC). You press Send in each Gmail window; nothing is sent by this app.</p>
+        <p className="mt-2 text-xs text-mist-500">Order: published addresses first, then follow-ups, then best score. Every person gets their own email (no CC or BCC). You press Send in each Gmail window; nothing is sent by this app.</p>
         <ErrorNote error={q.error ?? sent.error} />
       </Card>
       <Card title="Send through the Gmail API (fast, one separate email per person)">
         <div className="flex flex-wrap items-center gap-3 text-sm">
-          {ss && !ss.authorized && <span className="text-amber-700">Not authorized yet: run <code>python -m pipeline gmail-auth</code> once and click Allow.</span>}
+          {ss && !ss.authorized && <span className="text-violet-200">Not authorized yet: run <code>python -m pipeline gmail-auth</code> once and click Allow.</span>}
           <Button onClick={() => startSend.mutate(true)} disabled={!items.length || ss?.running}>Preview (dry run)</Button>
           <Button tone="danger" onClick={() => setConfirmSend(true)} disabled={!items.length || !remaining || !ss?.authorized || ss?.running}>Send {Math.min(items.length, remaining)} now</Button>
           {ss?.running && <span>Sending…</span>}
         </div>
         <ErrorNote error={startSend.error} />
-        {ss?.error && <p className="mt-2 text-sm text-red-700">{ss.error}</p>}
+        {ss?.error && <p className="mt-2 text-sm text-danger">{ss.error}</p>}
         {(ss?.results?.length ?? 0) > 0 && ss && (
           <table className="mt-3 w-full text-sm"><tbody>
             {ss.results.map((r: J) => (
@@ -78,22 +78,22 @@ export default function Send() {
           <div className="flex justify-end gap-2"><Button onClick={() => setConfirmSend(false)}>Cancel</Button><Button tone="danger" onClick={() => startSend.mutate(false)} disabled={startSend.isPending}>Send now</Button></div>
         </Modal>
       )}
-      {!items.length && <p className="text-sm text-slate-500">Nothing ready. Approve drafts in <Link className="text-blue-600 underline" to="/review/queue">Review queue</Link>; follow-ups appear there when due.</p>}
+      {!items.length && <p className="text-sm text-mist-500">Nothing ready. Approve drafts in <Link className="text-violet-300 underline" to="/review/queue">Review queue</Link>; follow-ups appear there when due.</p>}
       {items.map((x) => (
         <Card key={x.id} className="space-y-1">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <input type="checkbox" checked={picked.includes(x.id)} onChange={() => toggle(x.id)} />
-            <strong>{x.person.full_name}</strong><span className="text-slate-500">{x.company.name}</span><span className="text-slate-500">&lt;{x.to}&gt;</span>
+            <strong>{x.person.full_name}</strong><span className="text-mist-500">{x.company.name}</span><span className="text-mist-500">&lt;{x.to}&gt;</span>
             {x.published ? <Badge tone="green">published</Badge> : <Badge tone="amber">guess, may bounce</Badge>}
             {x.kind !== "initial" && <Badge tone="blue">{x.kind === "final" ? "last note" : "follow-up"}</Badge>}
             <Badge tone="slate">score {x.score}</Badge>
             <span className="ml-auto flex gap-2">
-              <a className="rounded border border-blue-600 bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700" href={gmail(x, sendFrom)} target="_blank" rel="noreferrer" onClick={() => setOpened([...opened, x.id])}>Open in Gmail</a>
+              <a className="border border-mist-50 bg-mist-50 px-3 py-1 text-sm text-ink-950 hover:bg-mist-200" href={gmail(x, sendFrom)} target="_blank" rel="noreferrer" onClick={() => setOpened([...opened, x.id])}>Open in Gmail</a>
               <Button onClick={() => sent.mutate([x.id])} disabled={sent.isPending}>I sent it</Button>
             </span>
           </div>
           <div className="text-sm font-semibold">{x.subject}</div>
-          <pre className="whitespace-pre-wrap font-sans text-xs text-slate-600">{x.body}</pre>
+          <pre className="whitespace-pre-wrap font-sans text-xs text-mist-200">{x.body}</pre>
         </Card>
       ))}
     </div>

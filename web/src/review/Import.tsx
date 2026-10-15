@@ -14,7 +14,7 @@ export default function ImportLinkedin() {
   };
   return (
     <Card title="Import your LinkedIn connections">
-      <ol className="mb-3 list-decimal space-y-1 pl-5 text-sm text-slate-600">
+      <ol className="mb-3 list-decimal space-y-1 pl-5 text-sm text-mist-200">
         <li>On LinkedIn: Settings, Data privacy, <b>Get a copy of your data</b>, request the larger archive (ready within about 24 hours).</li>
         <li>Open the downloaded zip and pick <b>Connections.csv</b> below. Nothing is scraped; the file is your own data.</li>
         <li>Then run <b>rank</b> (Search &amp; run). Connections get a score bonus and show as &quot;your LinkedIn connection&quot;.</li>
@@ -23,7 +23,7 @@ export default function ImportLinkedin() {
       <ErrorNote error={m.error} />
       {m.isPending && <p className="mt-2 text-sm">Importing {name}…</p>}
       {m.data && (
-        <p className="mt-2 text-sm text-green-700">
+        <p className="mt-2 text-sm text-online">
           {m.data.imported} connections imported ({m.data.with_email} with an email, {m.data.skipped_no_company} skipped without a company).{" "}
           <Link className="underline" to="/review/contacts">See contacts</Link>
         </p>

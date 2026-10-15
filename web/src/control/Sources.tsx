@@ -24,7 +24,7 @@ function SourceCard({ s }: { s: J }) {
       <div className="flex items-center gap-2">
         <h3 className="font-semibold">{s.name}</h3>
         {s.is_stub && <Badge tone="amber">stub, no data source</Badge>}
-        {s.requires_config.length > 0 && <span className="text-xs text-slate-400">needs: {s.requires_config.join(", ")}</span>}
+        {s.requires_config.length > 0 && <span className="text-xs text-mist-500">needs: {s.requires_config.join(", ")}</span>}
         <label className="ml-auto flex items-center gap-1 text-sm">
           <input type="checkbox" disabled={s.is_stub} checked={s.enabled} onChange={(e) => save({ enabled: e.target.checked })} /> enabled
         </label>
@@ -32,16 +32,16 @@ function SourceCard({ s }: { s: J }) {
       {!s.is_stub && (
         <div className="mt-2 space-y-2 text-sm">
           <label className="block">Rate limit (seconds between requests, min 1)
-            <input className="ml-2 w-20 rounded border px-2 py-1" type="number" min={1} step={0.5} value={rate} onChange={(e) => setRate(e.target.value)} /></label>
+            <input className="ml-2 w-20 border px-2 py-1" type="number" min={1} step={0.5} value={rate} onChange={(e) => setRate(e.target.value)} /></label>
           <label className="block">Query filters (JSON)
-            <textarea className="mt-1 h-20 w-full rounded border p-2 font-mono text-xs" placeholder={HINTS[s.name]} value={filters} onChange={(e) => setFilters(e.target.value)} /></label>
+            <textarea className="mt-1 h-20 w-full border p-2 font-mono text-xs" placeholder={HINTS[s.name]} value={filters} onChange={(e) => setFilters(e.target.value)} /></label>
           <Button onClick={() => save()}>Save</Button>
         </div>
       )}
       <ErrorNote error={m.error ?? (localErr ? new Error(localErr) : null)} />
-      <dl className="mt-2 grid grid-cols-3 gap-2 text-xs text-slate-500">
+      <dl className="mt-2 grid grid-cols-3 gap-2 text-xs text-mist-500">
         <div>Last success<br /><b>{fmt(s.last_success)}</b></div><div>Cached items<br /><b>{s.cached_items}</b></div>
-        <div>Last error<br /><b className="text-red-600">{s.last_error ?? "—"}</b></div>
+        <div>Last error<br /><b className="text-danger">{s.last_error ?? "—"}</b></div>
       </dl>
     </Card>
   );

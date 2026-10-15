@@ -1,0 +1,12 @@
+/* Our additions on top of Aphelion's index.css (kept separate so index.css stays a verbatim copy). */
+@layer base {
+  *, ::before, ::after { border-color: var(--color-line); }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 300; letter-spacing: -.01em; }
+  input, select, textarea { background: var(--color-ink-800); border: 1px solid var(--color-line); color: var(--color-mist-50); padding: .4rem .65rem; font-size: 14px; }
+  input:focus, select:focus, textarea:focus { border-color: var(--color-violet-500); outline: none; }
+  input[type="checkbox"], input[type="radio"] { padding: 0; accent-color: var(--color-violet-500); }
+  ::placeholder { color: var(--color-mist-500); }
+  table { border-collapse: collapse; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; color: var(--color-violet-200); }
+  pre { color: var(--color-mist-200); }
+}

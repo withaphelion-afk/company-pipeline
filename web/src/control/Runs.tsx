@@ -30,14 +30,14 @@ function LogPanel({ jobId }: { jobId: number }) {
   return (
     <Card title={`Job ${jobId} logs`}>
       {progress && <div className="mb-2 text-xs">{progress.processed}/{progress.total} processed · {progress.errors} errors
-        <div className="mt-1 h-2 rounded bg-slate-200"><div className="h-2 rounded bg-blue-500" style={{ width: `${pct}%` }} /></div></div>}
+        <div className="mt-1 h-2 bg-line"><div className="h-2 bg-ink-8000" style={{ width: `${pct}%` }} /></div></div>}
       <div className="mb-2 flex items-center gap-3 text-xs">
-        <select className="rounded border px-1" value={level} onChange={(e) => setLevel(e.target.value)}>
+        <select className="border px-1" value={level} onChange={(e) => setLevel(e.target.value)}>
           {["all", "info", "warn", "error"].map((l) => <option key={l}>{l}</option>)}
         </select>
         <label><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> auto-scroll</label>
       </div>
-      <div className="h-64 overflow-auto rounded bg-slate-900 p-2 font-mono text-xs text-slate-100">
+      <div className="h-64 overflow-auto bg-ink-950 p-2 font-mono text-xs text-mist-200">
         {lines.filter((l) => level === "all" || l.level === level).map((l, i) => (
           <div key={i} className={l.level === "error" ? "text-red-400" : l.level === "warn" ? "text-amber-300" : ""}>[{l.level}] {l.message}</div>
         ))}
@@ -65,10 +65,10 @@ export default function Runs() {
               const p = j.progress;
               const pct = p?.total ? Math.min(100, Math.round((p.processed / p.total) * 100)) : 0;
               return (
-                <tr key={j.id} className={`cursor-pointer border-t ${sel === j.id ? "bg-blue-50" : ""}`} onClick={() => setSel(j.id)}>
-                  <td className={td}>#{j.id}</td><td className={td}>{j.stage}{j.dry_run && <span className="ml-1 text-xs text-slate-400">dry</span>}</td>
+                <tr key={j.id} className={`cursor-pointer border-t ${sel === j.id ? "bg-ink-800" : ""}`} onClick={() => setSel(j.id)}>
+                  <td className={td}>#{j.id}</td><td className={td}>{j.stage}{j.dry_run && <span className="ml-1 text-xs text-mist-500">dry</span>}</td>
                   <td className={td}>{j.source ?? "all"}</td><td className={td}>{fmt(j.started_at)}</td><td className={td}>{elapsed(j, now)}</td>
-                  <td className={td}><div className="h-2 w-24 rounded bg-slate-200"><div className="h-2 rounded bg-blue-500" style={{ width: `${pct}%` }} /></div></td>
+                  <td className={td}><div className="h-2 w-24 bg-line"><div className="h-2 bg-ink-8000" style={{ width: `${pct}%` }} /></div></td>
                   <td className={td}><Badge>{j.status}</Badge></td>
                   <td className={td}><Button tone="danger" onClick={(e) => { e.stopPropagation(); cancel.mutate(j.id); }}>Cancel</Button></td>
                 </tr>
@@ -76,7 +76,7 @@ export default function Runs() {
             })}
           </tbody>
         </table>
-        {q.data?.items.length === 0 && <p className="mt-2 text-sm text-slate-500">Nothing running or queued.</p>}
+        {q.data?.items.length === 0 && <p className="mt-2 text-sm text-mist-500">Nothing running or queued.</p>}
       </Card>
       {sel !== null && <LogPanel jobId={sel} />}
     </div>

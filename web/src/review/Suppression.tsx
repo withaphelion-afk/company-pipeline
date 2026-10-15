@@ -14,8 +14,8 @@ export default function Suppression() {
   return (
     <Card>
       <form className="mb-3 flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); add.mutate(); }}>
-        <input className="rounded border px-2 py-1 text-sm" placeholder="email or domain" value={value} onChange={(e) => setValue(e.target.value)} required />
-        <input className="w-72 rounded border px-2 py-1 text-sm" placeholder="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+        <input className="border px-2 py-1 text-sm" placeholder="email or domain" value={value} onChange={(e) => setValue(e.target.value)} required />
+        <input className="w-72 border px-2 py-1 text-sm" placeholder="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
         <Button tone="primary" type="submit">Add</Button>
       </form>
       <ErrorNote error={add.error ?? del.error ?? q.error} />

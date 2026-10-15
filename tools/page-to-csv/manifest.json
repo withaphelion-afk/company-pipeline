@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "Page to CSV + Maps Leads (learning project)",
+  "version": "0.2.0",
+  "description": "Downloads the main table or list on a page as CSV, or sends Google Maps results straight to the Maps Leads app.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["http://127.0.0.1:8000/*", "http://localhost:8000/*", "https://pipeline-api-dnnk.onrender.com/*"],
+  "action": { "default_popup": "popup.html" }
+}
