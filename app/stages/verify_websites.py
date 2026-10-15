@@ -21,4 +21,6 @@ def run(ctx: StageContext) -> None:
             c.website = v.url
         c.extra = e
         ctx.count(f"site_{v.status}")
+        if not ctx.dry_run:
+            ctx.session.commit()  # short transactions: Neon drops connections left idle inside a long one while we fetch other sites
         ctx.progress(i, len(leads))
