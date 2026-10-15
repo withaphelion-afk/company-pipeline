@@ -15,7 +15,7 @@ import Sources from "./control/Sources";
 import Safety from "./control/Safety";
 import History from "./control/History";
 import Cache from "./control/Cache";
-import Find from "./maps/Find";
+import { Feed, FindQueue, Help } from "./maps/Find";
 import Leads from "./maps/Leads";
 import Pitch from "./maps/Pitch";
 import Tracker from "./maps/Tracker";
@@ -40,7 +40,8 @@ const pipeline: AppDef = {
 const maps: AppDef = {
   key: "maps", name: "Maps Leads",
   modules: [
-    { key: "find", label: "Find", icon: "⌕", tabs: [{ key: "find", label: "Find", el: <Find /> }] },
+    { key: "find", label: "Find", icon: "⌕", tabs: [
+      { key: "find", label: "Search queue", el: <FindQueue /> }, { key: "feed", label: "Live feed", el: <Feed /> }, { key: "help", label: "How it works", el: <Help /> }] },
     { key: "leads", label: "Leads", icon: "◆", tabs: [{ key: "leads", label: "Leads", el: <Leads /> }] },
     { key: "pitch", label: "Pitch", icon: "✉", tabs: [{ key: "pitch", label: "Pitch", el: <Pitch /> }] },
     { key: "tracker", label: "Tracker", icon: "▤", tabs: [{ key: "tracker", label: "Tracker", el: <Tracker /> }] },

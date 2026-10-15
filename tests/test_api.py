@@ -510,3 +510,14 @@ def test_parallel_claims_never_hand_out_the_same_search(client):
         got = [r.json()["item"] for r in ex.map(lambda _: client.post("/leads/queue/next"), range(6))]
     ids = [i["id"] for i in got if i]
     assert len(ids) == len(set(ids))  # every claim got a different search (SQLite serialises; Postgres uses the row lock)
+
+
+def test_leads_sorting_and_paging(client):
+    rows = [{"name": n, "category_address": f"{c} · Saket", "rating": r, "website": "https://x.example"}
+            for n, c, r in [("Bravo", "Skin clinic", "4.5 stars 900 Reviews"), ("Alpha", "Dental clinic", "4.9 stars 40 Reviews"), ("Charlie", "Salon", "4.0 stars 300 Reviews")]]
+    client.post("/leads/ingest", json={"rows": rows, "query": "x"})
+    names = lambda **p: [i["name"] for i in client.get("/leads", params={"site": "any", **p}).json()["items"]]  # noqa: E731
+    assert names(sort="name", order="asc") == ["Alpha", "Bravo", "Charlie"]
+    assert names(sort="reviews", order="desc") == ["Bravo", "Charlie", "Alpha"]
+    assert names(sort="name", order="asc", page_size=2, page=2) == ["Charlie"]
+    assert client.get("/leads", params={"site": "any", "page_size": 2}).json()["total"] == 3

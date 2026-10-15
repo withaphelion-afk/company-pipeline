@@ -14,8 +14,8 @@ export function Shell({ app, apps }: { app: AppDef; apps: AppDef[] }) {
   const cur = mod.tabs.find((t) => t.key === tab) ?? mod.tabs[0];
   const first = (a: AppDef) => `/${a.key}/${a.modules[0].key}/${a.modules[0].tabs[0].key}`;
   return (
-    <div className="flex min-h-screen">
-      <aside className={`${menu ? "block" : "hidden"} w-56 shrink-0 border-r border-line bg-ink-900 p-3 md:block`}>
+    <div className="flex h-dvh overflow-hidden">
+      <aside className={`${menu ? "block" : "hidden"} w-56 shrink-0 overflow-y-auto border-r border-line bg-ink-900 p-3 md:block`}>
         <div className="mb-4 px-2 text-sm font-bold">{app.name}</div>
         <nav className="space-y-1">
           {app.modules.map((m) => (
@@ -26,8 +26,8 @@ export function Shell({ app, apps }: { app: AppDef; apps: AppDef[] }) {
           ))}
         </nav>
       </aside>
-      <div className="min-w-0 flex-1">
-        <header className="flex items-center gap-3 border-b border-line bg-ink-900 px-4 py-2">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="flex shrink-0 items-center gap-3 border-b border-line bg-ink-900 px-4 py-2">
           <button className="border px-2 py-1 text-sm md:hidden" onClick={() => setMenu(!menu)}>Menu</button>
           <h1 className="text-base font-semibold">{mod.label}</h1>
           <div className="relative ml-auto">
@@ -44,16 +44,16 @@ export function Shell({ app, apps }: { app: AppDef; apps: AppDef[] }) {
             )}
           </div>
         </header>
-        <main className="p-4">
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-4">  {/* fills the screen height; 12px of space below */}
           {mod.tabs.length > 1 && (
-            <div className="mb-4 flex flex-wrap gap-1 border-b border-line pb-2">
+            <div className="mb-3 flex shrink-0 flex-wrap gap-1 border-b border-line pb-2">
               {mod.tabs.map((t) => (
                 <Link key={t.key} to={`/${app.key}/${mod.key}/${t.key}`}
                   className={`px-3 py-1 text-sm ${t.key === cur.key ? "bg-mist-50 text-ink-950" : "hover:bg-ink-800"}`}>{t.label}</Link>
               ))}
             </div>
           )}
-          {cur.el}
+          <div className="flex min-h-0 flex-1 flex-col">{cur.el}</div>
         </main>
       </div>
     </div>

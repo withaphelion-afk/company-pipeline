@@ -105,7 +105,7 @@ def ingest(b: IngestIn, s: Session = Depends(get_session), _: None = Depends(ing
 
 
 @router.get("")
-def list_leads(no_website: bool = False, status: str | None = None, q: str | None = None, search: str | None = None, site: Literal["any", "none", "has", "probable", "unknown"] = "any", page: int = 1, page_size: int = 100,
+def list_leads(no_website: bool = False, status: str | None = None, q: str | None = None, search: str | None = None, site: Literal["any", "none", "has", "probable", "unknown"] = "any", sort: str = "score", order: Literal["asc", "desc"] = "desc", page: int = 1, page_size: int = 100,
                s: Session = Depends(get_session)) -> dict[str, Any]:
     items = [lead_out(c) for c in _leads(s)]
     want = {"none": ("none",), "has": ("has_site",), "probable": ("probable_site",), "unknown": ("unknown", "pending")}
@@ -119,7 +119,19 @@ def list_leads(no_website: bool = False, status: str | None = None, q: str | Non
         items = [i for i in items if search.lower() in i["queries"]]
     if q:
         items = [i for i in items if q.lower() in f"{i['name']} {i['category']} {i['address']}".lower()]
-    items.sort(key=lambda i: -i["score"])
+    def key(i: dict[str, Any]) -> Any:
+        if sort == "reviews":
+            m = re.search(r"([\d,]+)\s*reviews?", i["rating"], re.I)
+            return int(m.group(1).replace(",", "")) if m else 0
+        if sort == "website":
+            return i["website_status"]
+        if sort == "found":
+            return str(i["found_at"] or "")
+        if sort in ("name", "category", "address", "phone", "status"):
+            return str(i.get(sort) or "").lower()
+        return i["score"]
+
+    items.sort(key=key, reverse=order == "desc")
     return {"total": len(items), "items": items[(page - 1) * page_size: page * page_size]}
 
 
